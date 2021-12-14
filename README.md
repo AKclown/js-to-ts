@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 # swagger-to-typescript README
 
 This is the README for your extension "swagger-to-typescript". After writing up a brief description, we recommend including the following sections.
@@ -68,3 +69,7 @@ Ensure that you've read through the extensions guidelines and follow the best pr
 * [Markdown Syntax Reference](https://help.github.com/articles/markdown-basics/)
 
 **Enjoy!**
+=======
+# swagger-to-typescript
+The vscode plugin converts swagger type to typescript type
+>>>>>>> da70076e7ff6b7a7beb3a78d66736b9106c75335
