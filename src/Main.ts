@@ -57,7 +57,7 @@ ${interfaceText.trim()}${content}
       const type = this.formatType(contents[2]);
       contentText = `${contentText}
   ${note}
-  ${contents[1].trim()}:${type};`;
+  ${contents[1].trim()}?:${type};`;
 }
     return contentText;
   }
