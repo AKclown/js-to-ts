@@ -1,17 +1,17 @@
 ### **Swagger To Typescript**
 
-- Swagger To Typescript是用于将Swagger文档提供的类型自动转为typescript类型的一款插件
-![模板](./images/template.png)
+- Swagger To Typescript is a plug-in used to convert the types provided by Swagger documents to typescript types automatically.
+  ![template](./images/template.png)
 
---- 
 
-### **用法**
-![教程](./images/tutorials.gif)
+### **usage**
+![tutorials](./images/tutorials.gif)
 
-### **快捷键配置**
-- 默认按键配置(window & mac)
-1. 转换操作 `ctrl+shift+k` (右键面板也由选项)
+### **Keyboard shortcuts configuration.**
 
-- 你也可以去快捷键设置界面进行自定义设置
+- Default button configuration (window & mac)
+1. Conversion operation `ctrl+shift+k` (Right-click panel also has options)
+- You can also make customize settings in the shortcut key setting interface.
 
-PS: [File Teleport](https://github.com/AKclown/file-teleport)文件同步更新插件
+---
+PS: [File Teleport](https://github.com/AKclown/file-teleport)File will be updated synchronously together with plug-in.
