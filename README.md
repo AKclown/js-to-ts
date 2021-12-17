@@ -1,4 +1,4 @@
-### **Swagger To Typescript**
+### **Swagger To Typescript**[中文版](./README-ZH.md)
 
 - Swagger To Typescript is a plug-in used to convert the types provided by Swagger documents to typescript types automatically.
   ![template](./images/template.png)

@@ -3,7 +3,7 @@ import { BaseClass } from "./BaseClass";
 import { IMain } from "./interface/Main.interface";
 
 export class Main extends BaseClass implements IMain {
-  private nameRegular = /([a-zA-Z]*)(«(?:\w)+»)?(?:\s)*(\{)/m;
+  private nameRegular = /([a-zA-Z]*)(«(?:[\w|«|»])+»)?(?:\s)*(\{)/m;
   private contentRegular = /(\w+).*\(([^,]+).*\)((?:\:)([^,|}|\r|\n]+))?/g;
   private blockRegular = /([^\{]*\{)([^\{\}]+)(\})/gm;
 
@@ -29,7 +29,7 @@ export class Main extends BaseClass implements IMain {
           const content = this.getContent(blocks[2]);
           formatText = `${formatText}
 ${interfaceText.trim()}${content}
-  }
+}
   `;
         }
         editor.edit((editorContext) =>
@@ -43,6 +43,7 @@ ${interfaceText.trim()}${content}
 
   /** 获取interface模板 */
   getInterface(text: string) {
+    console.log("text: ", text);
     const names = text.match(this.nameRegular);
     return names ? `export interface ${names[1]} ${names[3]}\n\t` : "";
   }
@@ -58,7 +59,7 @@ ${interfaceText.trim()}${content}
       contentText = `${contentText}
   ${note}
   ${contents[1].trim()}?:${type};`;
-}
+    }
     return contentText;
   }
 

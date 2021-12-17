@@ -2,7 +2,7 @@
   "name": "swagger-to-typescript",
   "displayName": "Swagger To Typescript",
   "description": "converts swagger type to typescript type",
-  "version": "0.1.1",
+  "version": "0.1.2",
 	"publisher": "AKclown",
   "engines": {
     "vscode": "^1.63.0"

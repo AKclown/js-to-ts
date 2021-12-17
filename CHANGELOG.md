@@ -1,9 +1,14 @@
-# Change Log
+# 0.1.2 (2021-21-17)
+**Bug Fixes**
+- 修复ApiResponse«List«PlayerAwardVo»» 多个«无法匹配问题
+- 新增英文版本README.md
 
-All notable changes to the "swagger-to-typescript" extension will be documented in this file.
+# 0.1.1  (2021-21-15)
+**Bug Fixes**
+- 将:必选改为?:可选
 
-Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how to structure this file.
+# 0.1.0 (2021-21-15)
 
-## [Unreleased]
-
-- Initial release
+**Feature**
+- swagger类型转换为typescript类型
+- 添加ctrl+shift+k快捷键
