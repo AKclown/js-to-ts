@@ -1,12 +1,11 @@
-import { Range, TextEditor, window } from "vscode";
+import { Range, window } from "vscode";
 import {
   IBaseClass,
   ReturnSelectedInfo,
 } from "./interface/BaseClass.interface";
 
 export class BaseClass implements IBaseClass {
-  
-  /** 获取到选择的区域信息 */ 
+  /** 获取到选择的区域信息 */
   getSelectedInfo(): ReturnSelectedInfo[] {
     const data: Array<ReturnSelectedInfo> = [];
     const editor = window.activeTextEditor;

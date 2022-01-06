@@ -42,18 +42,16 @@ ${interfaceText.trim()}${content}
   }
 
   /** 获取interface模板 */
-  getInterface(text: string) {
-    console.log("text: ", text);
+  getInterface(text: string):string {
     const names = text.match(this.nameRegular);
     return names ? `export interface ${names[1]} ${names[3]}\n\t` : "";
   }
 
   /** 获取内容类型模板 */
-  getContent(text: string) {
+  getContent(text: string):string {
     let contents = null;
     let contentText = "";
     while ((contents = this.contentRegular.exec(text))) {
-      console.log("contents: ", contents);
       let note = contents[4] ? `/** ${contents[4].trim()} */` : "";
       const type = this.formatType(contents[2]);
       contentText = `${contentText}
@@ -64,7 +62,7 @@ ${interfaceText.trim()}${content}
   }
 
   /** 类型格式化 */
-  formatType(type: string) {
+  formatType(type: string):string {
     if (type === "integer") {
       return "number";
     } else if (type.search(/Array/g) !== -1) {
