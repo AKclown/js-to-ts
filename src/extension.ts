@@ -16,11 +16,18 @@ export function activate(context: vscode.ExtensionContext) {
       mainInstant
     );
 
+        
+    const jsObjectToTsDisposable = commands.registerCommand(
+      COMMANDS.SWAGGER_TO_TYPESCRIPT_OBJECT_CONVERT,
+      mainInstant.jsObjectToTs,
+      mainInstant
+    );
+
     // *********************
     // Destroy
     // *********************
 
-    context.subscriptions.push(defaultDisposable);
+    context.subscriptions.push(defaultDisposable,jsObjectToTsDisposable);
   } catch (error) {
     console.log("error: ", error);
   }

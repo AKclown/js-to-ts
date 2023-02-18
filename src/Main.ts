@@ -1,6 +1,23 @@
 import { window } from "vscode";
 import { BaseClass } from "./BaseClass";
 import { IMain } from "./interface/Main.interface";
+import generate from "@babel/generator";
+import * as t from "@babel/types";
+import { v4 as uuidv4 } from "uuid";
+import {
+  isArray,
+  isBoolean,
+  isDate,
+  isError,
+  isNull,
+  isNumber,
+  isObj,
+  isPromise,
+  isRegExp,
+  isString,
+  isSymbol,
+  isUndefined,
+} from "./utils";
 
 export class Main extends BaseClass implements IMain {
   private nameRegular = /([a-zA-Z]*)(«(?:[\w|«|»])+»)?(?:\s)*(\{)/m;
@@ -17,8 +34,7 @@ export class Main extends BaseClass implements IMain {
         return;
       }
       selectData.forEach((item) => {
-        const text = item.text;
-        const range = item.range;
+        const { text, range } = item;
         // 将数据分为区域 ~{(第一块) {}(里面的内容第二块) }(第三块)
         let blocks = null;
         // 数据string
@@ -42,13 +58,13 @@ ${interfaceText.trim()}${content}
   }
 
   /** 获取interface模板 */
-  getInterface(text: string):string {
+  getInterface(text: string): string {
     const names = text.match(this.nameRegular);
     return names ? `export interface ${names[1]} ${names[3]}\n\t` : "";
   }
 
   /** 获取内容类型模板 */
-  getContent(text: string):string {
+  getContent(text: string): string {
     let contents = null;
     let contentText = "";
     while ((contents = this.contentRegular.exec(text))) {
@@ -62,7 +78,7 @@ ${interfaceText.trim()}${content}
   }
 
   /** 类型格式化 */
-  formatType(type: string):string {
+  formatType(type: string): string {
     if (type === "integer") {
       return "number";
     } else if (type.search(/Array/g) !== -1) {
@@ -70,5 +86,121 @@ ${interfaceText.trim()}${content}
       return mat ? mat[1] : "unknown";
     }
     return type;
+  }
+
+  // *********************
+  // jsObject 转换为 ts
+  // *********************
+
+  jsObjectToTs() {
+    const selectData = this.getSelectedInfo();
+    const editor = window.activeTextEditor;
+    if (!editor) {
+      return;
+    }
+    // 获取到变量 和 对象的正则
+    const regualar = /\s*(\w+)\s*=\s*(\{[\s\S]*\})/gm;
+
+    selectData.forEach((item) => {
+      const { text, range } = item;
+      if (~text.indexOf("=")) {
+        const match = regualar.exec(text);
+        if (match) {
+          const variableName = match[1];
+          const object = eval(`(${match[2]})`);
+          const code = this.analyzeAndGenerate(object, variableName);
+          editor.edit((editorContext) => editorContext.replace(range, code));
+        }
+      } else {
+        // 单纯对象
+        const object = eval(`(${text})`);
+        const randomName = uuidv4().slice(0, 4);
+        const code = this.analyzeAndGenerate(object, randomName);
+        editor.edit((editorContext) => editorContext.replace(range, code));
+      }
+    });
+  }
+
+  analyzeAndGenerate(obj: any, name: string) {
+    const typeProperties = Object.entries(obj).map(([key, value]) => {
+      const typeAnnotation = this.getTypeAnnotation(value);
+      return t.tsPropertySignature(
+        t.identifier(key),
+        t.tsTypeAnnotation(typeAnnotation)
+      );
+    });
+    const typeAlias = t.tsInterfaceDeclaration(
+      t.identifier(`I${name}`),
+      null,
+      null,
+      t.tsInterfaceBody(typeProperties)
+    );
+
+    const ast = t.file(t.program([typeAlias]));
+    const code = generate(ast).code;
+    return code;
+  }
+
+  getTypeAnnotation(value: unknown): any {
+    if (isArray(value)) {
+      // $ 去重操作
+      const union = new Map();
+      for (const element of value as Array<unknown>) {
+        const elementType = this.getTypeAnnotation(element);
+        union.set(elementType.type, elementType);
+      }
+      const unionType = t.tsUnionType(Array.from(union.values()) as t.TSType[]);
+      return t.tsArrayType(unionType);
+    }
+
+    if (isObj(value)) {
+      const properties = Object.entries(value as Record<string, unknown>).map(
+        ([key, val]) =>
+          t.tsPropertySignature(
+            t.identifier(key),
+            t.tsTypeAnnotation(this.getTypeAnnotation(val))
+          )
+      );
+      return t.tsTypeLiteral(properties);
+    }
+
+    if (isString(value)) {
+      return t.tsStringKeyword();
+    }
+
+    if (isBoolean(value)) {
+      return t.tsBooleanKeyword();
+    }
+
+    if (isNumber(value)) {
+      return t.tsNumberKeyword();
+    }
+
+    if (isNull(value)) {
+      return t.tsNullKeyword();
+    }
+
+    if (isUndefined(value)) {
+      return t.tsUndefinedKeyword();
+    }
+
+    if (isSymbol(value)) {
+      return t.tSSymbolKeyword();
+    }
+
+    if (isDate(value)) {
+      return t.tsTypeReference(t.identifier('Date'));
+    }
+
+    if (isRegExp(value)) {
+      return t.tsTypeReference(t.identifier('RegExp'));
+    }
+
+    if (isError(value)) {
+      return t.tsTypeReference(t.identifier('Error'));
+    }
+
+    // 未知类型
+    return t.tsUnknownKeyword();
   }
 }

@@ -1,44 +1,63 @@
 {
   "name": "swagger-to-typescript",
-  "displayName": "Swagger To Typescript",
-  "description": "converts swagger type to typescript type",
-  "version": "0.1.2",
-	"publisher": "AKclown",
+  "displayName": "JS To TS",
+  "description": "Converts JS Object or Swagger type to typescript type",
+  "version": "0.2.0",
+  "publisher": "AKclown",
   "engines": {
     "vscode": "^1.63.0"
   },
   "keywords": [
+    "js to ts",
+    "ts",
+    "javascript",
     "Swagger To Typescript",
     "Typescript",
-    "converts Type",
-    "swagger"
+    "converts Type"
   ],
   "homepage": "https://github.com/AKclown/swagger-to-typescript/blob/main/README.md",
   "repository": {
-		"type": "git",
-		"url": "https://github.com/AKclown/swagger-to-typescript.git"
-	},
+    "type": "git",
+    "url": "https://github.com/AKclown/swagger-to-typescript.git"
+  },
   "icon": "images/icon.png",
-	"bugs": {
-		"url": "https://github.com/AKclown/swagger-to-typescript/issues"
-	},
+  "bugs": {
+    "url": "https://github.com/AKclown/swagger-to-typescript/issues"
+  },
   "categories": [
     "Other"
   ],
   "activationEvents": [
-    "onCommand:swagger.to.typescript.convert"
+    "onCommand:swagger.to.typescript.convert",
+    "onCommand:swagger.to.typescript.object.convert"
   ],
   "main": "./out/extension.js",
   "contributes": {
     "commands": [
       {
         "category": "Swagger To Typescript",
+        "command": "swagger.to.typescript.object.convert",
+        "title": "Object To Typescript"
+      },
+      {
+        "category": "Swagger To Typescript",
         "command": "swagger.to.typescript.convert",
-        "title": "Converts Swagger To Typescript"
+        "title": "Swagger To Typescript"
       }
     ],
     "menus": {
       "editor/context": [
+        {
+          "submenu": "swagger.to.typescript.context",
+          "group": "1_modification"
+        }
+      ],
+      "swagger.to.typescript.context": [
+        {
+          "command": "swagger.to.typescript.object.convert",
+          "group": "1_modification",
+          "when": "editorHasSelection"
+        },
         {
           "command": "swagger.to.typescript.convert",
           "group": "1_modification",
@@ -46,7 +65,19 @@
         }
       ]
     },
+    "submenus": [
+      {
+        "id": "swagger.to.typescript.context",
+        "label": "JS To TS"
+      }
+    ],
     "keybindings": [
+      {
+        "command": "swagger.to.typescript.object.convert",
+        "key": "ctrl+shift+j",
+        "mac": "ctrl+shift+j",
+        "when": "editorHasSelection"
+      },
       {
         "command": "swagger.to.typescript.convert",
         "key": "ctrl+shift+k",
@@ -64,16 +95,23 @@
     "test": "node ./out/test/runTest.js"
   },
   "devDependencies": {
-    "@types/vscode": "^1.63.0",
+    "@types/babel__generator": "^7.6.4",
     "@types/glob": "^7.1.4",
     "@types/mocha": "^9.0.0",
     "@types/node": "14.x",
+    "@types/uuid": "^9.0.0",
+    "@types/vscode": "^1.63.0",
     "@typescript-eslint/eslint-plugin": "^4.31.1",
     "@typescript-eslint/parser": "^4.31.1",
+    "@vscode/test-electron": "^1.6.2",
     "eslint": "^7.32.0",
     "glob": "^7.1.7",
     "mocha": "^9.1.1",
-    "typescript": "^4.4.3",
-    "@vscode/test-electron": "^1.6.2"
+    "typescript": "^4.4.3"
+  },
+  "dependencies": {
+    "@babel/generator": "^7.20.14",
+    "@babel/types": "^7.20.7",
+    "uuid": "^9.0.0"
   }
 }

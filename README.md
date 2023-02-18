@@ -1,16 +1,21 @@
-### **Swagger To Typescript**[中文版](./README-ZH.md)
+## JS To TS[中文版](./README-ZH.md)
 
-- Swagger To Typescript is a plug-in used to convert the types provided by Swagger documents to typescript types automatically.
-  ![template](./images/template.png)
+**Function 1:**&nbsp；convert objects of JavaScript to typescript type declaration.
+![模板](./images/jsToTs.jpg)
+**Function 2:**&nbsp；a plug-in that converts the type provided by the Swagger document to the typescript type automatically.
+![模板](./images/template.png)
+
+## usage
+![教程](./images/jsToTs.gif)
+![教程](./images/tutorials.gif)
 
 
-### **usage**
-![tutorials](./images/tutorials.gif)
-
-### **Keyboard shortcuts configuration.**
+## Keyboard shortcuts configuration.
 
 - Default button configuration (window & mac)
-1. Conversion operation `ctrl+shift+k` (Right-click panel also has options)
+1. Object conversion operation `ctrl+shift+j` (Function 1)
+2. Swagger conversion operation `ctrl+shift+k` (Function 2)
+
 - You can also make customize settings in the shortcut key setting interface.
 
 ---

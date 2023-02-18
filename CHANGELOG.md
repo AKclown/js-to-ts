@@ -1,3 +1,6 @@
+# 0.2.0 (2023-02-18)
+- 新增JS对象转为ts对象
+
 # 0.1.3 (2021-21-17)
 **Bug Fixes**
 - 修改template.png和tutorials.gif
