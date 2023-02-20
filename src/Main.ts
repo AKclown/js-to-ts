@@ -103,7 +103,8 @@ ${interfaceText.trim()}${content}
 
     selectData.forEach((item) => {
       const { text, range } = item;
-      if (~text.indexOf("=")) {
+      const variable = /\s*(\w+)\s*=\s*\{/;
+      if (variable.test(text)) {
         const match = regualar.exec(text);
         if (match) {
           const variableName = match[1];
