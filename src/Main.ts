@@ -134,10 +134,12 @@ ${interfaceText.trim()}${content}
     } else {
       let typeProperties = Object.entries(obj).map(([key, value]) => {
         const typeAnnotation = this.getTypeAnnotation(value);
-        return t.tsPropertySignature(
+        const propertySignatureNode = t.tsPropertySignature(
           t.identifier(key),
           t.tsTypeAnnotation(typeAnnotation)
         );
+        propertySignatureNode.optional = true;
+        return propertySignatureNode;
       });
       typeAlias = t.tsInterfaceDeclaration(
         t.identifier(`I${name}`),
@@ -166,11 +168,14 @@ ${interfaceText.trim()}${content}
 
     if (isObj(value)) {
       const properties = Object.entries(value as Record<string, unknown>).map(
-        ([key, val]) =>
-          t.tsPropertySignature(
+        ([key, val]) => {
+          const propertySignatureNode = t.tsPropertySignature(
             t.identifier(key),
             t.tsTypeAnnotation(this.getTypeAnnotation(val))
-          )
+          );
+          propertySignatureNode.optional = true;
+          return propertySignatureNode;
+        }
       );
       return t.tsTypeLiteral(properties);
     }
