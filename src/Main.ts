@@ -99,11 +99,11 @@ ${interfaceText.trim()}${content}
       return;
     }
     // 获取到变量 和 对象的正则
-    const regualar = /\s*(\w+)\s*=\s*(\{[\s\S]*\})/gm;
+    const regualar = /\s*(\w+)\s*=\s*((\{|\[)[\s\S]*(\}|\]))/gm;
 
     selectData.forEach((item) => {
       const { text, range } = item;
-      const variable = /\s*(\w+)\s*=\s*\{/;
+      const variable = /\s*(\w+)\s*=\s*[\{|\[]/;
       if (variable.test(text)) {
         const match = regualar.exec(text);
         if (match) {
@@ -123,21 +123,31 @@ ${interfaceText.trim()}${content}
   }
 
   analyzeAndGenerate(obj: any, name: string) {
-    const typeProperties = Object.entries(obj).map(([key, value]) => {
-      const typeAnnotation = this.getTypeAnnotation(value);
-      return t.tsPropertySignature(
-        t.identifier(key),
-        t.tsTypeAnnotation(typeAnnotation)
+    let typeAlias = null;
+    if (isArray(obj)) {
+      const typeAnnotation = this.getTypeAnnotation(obj);
+      typeAlias = t.tsTypeAliasDeclaration(
+        t.identifier(`I${name}`),
+        null,
+        typeAnnotation
       );
-    });
-    const typeAlias = t.tsInterfaceDeclaration(
-      t.identifier(`I${name}`),
-      null,
-      null,
-      t.tsInterfaceBody(typeProperties)
-    );
+    } else {
+      let typeProperties = Object.entries(obj).map(([key, value]) => {
+        const typeAnnotation = this.getTypeAnnotation(value);
+        return t.tsPropertySignature(
+          t.identifier(key),
+          t.tsTypeAnnotation(typeAnnotation)
+        );
+      });
+      typeAlias = t.tsInterfaceDeclaration(
+        t.identifier(`I${name}`),
+        null,
+        null,
+        t.tsInterfaceBody(typeProperties!)
+      );
+    }
 
-    const ast = t.file(t.program([typeAlias]));
+    const ast = t.file(t.program([typeAlias!]));
     const code = generate(ast).code;
     return code;
   }
@@ -190,15 +200,15 @@ ${interfaceText.trim()}${content}
     }
 
     if (isDate(value)) {
-      return t.tsTypeReference(t.identifier('Date'));
+      return t.tsTypeReference(t.identifier("Date"));
     }
 
     if (isRegExp(value)) {
-      return t.tsTypeReference(t.identifier('RegExp'));
+      return t.tsTypeReference(t.identifier("RegExp"));
     }
 
     if (isError(value)) {
-      return t.tsTypeReference(t.identifier('Error'));
+      return t.tsTypeReference(t.identifier("Error"));
     }
 
     // 未知类型
