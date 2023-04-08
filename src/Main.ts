@@ -3,26 +3,45 @@ import { BaseClass } from "./BaseClass";
 import { IMain } from "./interface/Main.interface";
 import generate from "@babel/generator";
 import * as t from "@babel/types";
+import { parse, parseExpression } from "@babel/parser";
 import { v4 as uuidv4 } from "uuid";
-import {
-  isArray,
-  isBoolean,
-  isDate,
-  isError,
-  isNull,
-  isNumber,
-  isObj,
-  isPromise,
-  isRegExp,
-  isString,
-  isSymbol,
-  isUndefined,
-} from "./utils";
+
+enum AstTypeEnum {
+  identifier = "Identifier",
+  stringLiteral = "StringLiteral",
+  numericLiteral = "NumericLiteral",
+  booleanLiteral = "BooleanLiteral",
+  nullLiteral = "NullLiteral",
+  newExpression = "NewExpression",
+  callExpression = "CallExpression",
+  objectExpression = "ObjectExpression",
+  arrayExpression = "ArrayExpression",
+}
+
+// TODO: Promise<T>
+enum TsParamsEnum {
+  tSTypeParameterInstantiation = "TSTypeParameterInstantiation",
+  tSAnyKeyword = "tSAnyKeyword",
+  tSNeverKeyword = "tSNeverKeyword",
+  tSNullKeyword = "TSNullKeyword",
+  tSNumberKeyword = "TSNumberKeyword",
+  tSStringKeyword = "TSStringKeyword",
+  tSSymbolKeyword = "TSSymbolKeyword",
+  tSUndefinedKeyword = "TSUndefinedKeyword",
+  tSUnknownKeyword = "TSUnknownKeyword",
+  tSVoidKeyword = "TSVoidKeyword",
+  tSUnionType = "TSUnionType",
+  tSIntersectionType = "TSIntersectionType",
+}
 
 export class Main extends BaseClass implements IMain {
   private nameRegular = /([a-zA-Z]*)(«(?:[\w|«|»])+»)?(?:\s)*(\{)/m;
   private contentRegular = /(\w+).*\(([^,]+).*\)((?:\:)([^,|}|\r|\n]+))?/g;
   private blockRegular = /([^\{]*\{)([^\{\}]+)(\})/gm;
+
+  // *********************
+  // Swagger To TS
+  // *********************
 
   /** 执行转换 */
   executeConverts() {
@@ -89,63 +108,88 @@ ${interfaceText.trim()}${content}
   }
 
   // *********************
-  // jsObject 转换为 ts
+  // Js To Ts
   // *********************
 
-  jsObjectToTs() {
+  jsToTs() {
     const selectData = this.getSelectedInfo();
     const editor = window.activeTextEditor;
     if (!editor) {
       return;
     }
-    // 获取到变量 和 对象的正则
-    const regualar = /\s*(\w+)\s*=\s*((\{|\[)[\s\S]*(\}|\]))/gm;
+    // 是否为赋值语句
+    const regualar = /(var|let|const)\s*\w+\s*=.*/;
 
     selectData.forEach((item) => {
       const { text, range } = item;
-      const variable = /\s*(\w+)\s*=\s*[\{|\[]/;
-      if (variable.test(text)) {
-        const match = regualar.exec(text);
-        if (match) {
-          const variableName = match[1];
-          const object = eval(`(${match[2]})`);
-          const code = this.analyzeAndGenerate(object, variableName);
-          editor.edit((editorContext) => editorContext.replace(range, code));
+      let type: AstTypeEnum;
+      let variableName: string;
+      let data: Array<unknown> = [];
+
+      if (regualar.test(text)) {
+        console.log("regualar.test(text): 121", regualar.test(text));
+        // TODO: 类型未定义
+        const ast: any = parse(text, { plugins: ["typescript"] });
+        const declaration = ast.program.body[0].declarations[0];
+        variableName = declaration.id.name;
+        type = declaration.init.type;
+
+        if (type === AstTypeEnum.objectExpression) {
+          data = declaration.init.properties;
+        } else if (type === AstTypeEnum.arrayExpression) {
+          data = declaration.init.elements;
         }
       } else {
-        // 单纯对象
-        const object = eval(`(${text})`);
-        const randomName = uuidv4().slice(0, 4);
-        const code = this.analyzeAndGenerate(object, randomName);
-        editor.edit((editorContext) => editorContext.replace(range, code));
+        // 不能存在分号
+        const updateText = text.trimRight().replace(/;$/, "");
+        const expressionAst: any = parseExpression(updateText);
+        console.log("expressionAst: ", expressionAst);
+        type = expressionAst.type as AstTypeEnum;
+        variableName = uuidv4().slice(0, 4);
+        if (type === AstTypeEnum.objectExpression) {
+          data = expressionAst.properties;
+        } else if (type === AstTypeEnum.arrayExpression) {
+          data = expressionAst.elements;
+        }
       }
+      const code = this.analyzeAndGenerate(data, type!, variableName!);
+      editor.edit((editorContext) => editorContext.replace(range, code));
     });
   }
 
-  analyzeAndGenerate(obj: any, name: string) {
+  // TODO:类型未定义
+  analyzeAndGenerate(
+    data: Array<any>,
+    type: AstTypeEnum,
+    variableName: string
+  ) {
     let typeAlias = null;
-    if (isArray(obj)) {
-      const typeAnnotation = this.getTypeAnnotation(obj);
-      typeAlias = t.tsTypeAliasDeclaration(
-        t.identifier(`I${name}`),
-        null,
-        typeAnnotation
-      );
-    } else {
-      let typeProperties = Object.entries(obj).map(([key, value]) => {
-        const typeAnnotation = this.getTypeAnnotation(value);
+    if (type === AstTypeEnum.objectExpression) {
+      const typeProperties = data.map((property) => {
+        const typeAnnotation = this.getTypeAnnotation(property.value);
         const propertySignatureNode = t.tsPropertySignature(
-          t.identifier(key),
+          t.identifier(property.key.name),
           t.tsTypeAnnotation(typeAnnotation)
         );
+        const leadingComment = property.leadingComments;
+        if (leadingComment) {
+          propertySignatureNode.leadingComments = [...leadingComment];
+        }
         propertySignatureNode.optional = true;
         return propertySignatureNode;
       });
       typeAlias = t.tsInterfaceDeclaration(
-        t.identifier(`I${name}`),
+        t.identifier(`I${variableName}`),
         null,
         null,
         t.tsInterfaceBody(typeProperties!)
+      );
+    } else if (type === AstTypeEnum.arrayExpression) {
+      const typeAnnotation = this.getTypeAnnotation({ elements: data, type });
+      typeAlias = t.tsTypeAliasDeclaration(
+        t.identifier(`I${variableName}`),
+        null,
+        typeAnnotation
       );
     }
 
@@ -154,68 +198,65 @@ ${interfaceText.trim()}${content}
     return code;
   }
 
-  getTypeAnnotation(value: unknown): any {
-    if (isArray(value)) {
-      // $ 去重操作
-      const union = new Map();
-      for (const element of value as Array<unknown>) {
-        const elementType = this.getTypeAnnotation(element);
-        union.set(elementType.type, elementType);
+  getTypeAnnotation(value: any) {
+    switch (value.type) {
+      case AstTypeEnum.stringLiteral: {
+        return t.tsStringKeyword();
       }
-      const unionType = t.tsUnionType(Array.from(union.values()) as t.TSType[]);
-      return t.tsArrayType(unionType);
-    }
-
-    if (isObj(value)) {
-      const properties = Object.entries(value as Record<string, unknown>).map(
-        ([key, val]) => {
+      case AstTypeEnum.booleanLiteral: {
+        return t.tsBooleanKeyword();
+      }
+      case AstTypeEnum.numericLiteral: {
+        return t.tsNumberKeyword();
+      }
+      case AstTypeEnum.nullLiteral: {
+        return t.tsNullKeyword();
+      }
+      case AstTypeEnum.identifier: {
+        if (value.name === "undefined") {
+          return t.tsUndefinedKeyword();
+        }
+        return t.tsUnknownKeyword();
+      }
+      case AstTypeEnum.callExpression:
+      case AstTypeEnum.newExpression: {
+        const calleeName = t.isIdentifier(value.callee) && value.callee.name;
+        if (calleeName) {
+          if (calleeName === "Promise") {
+            // TODO: 未完成
+            return t.tsTypeReference(t.identifier(`${calleeName}<unknown>`));
+          }
+          return t.tsTypeReference(t.identifier(calleeName));
+        }
+        return t.tsUnknownKeyword();
+      }
+      case AstTypeEnum.objectExpression: {
+        const properties = value.properties.map((property: any) => {
           const propertySignatureNode = t.tsPropertySignature(
-            t.identifier(key),
-            t.tsTypeAnnotation(this.getTypeAnnotation(val))
+            t.identifier(property.key.name),
+            t.tsTypeAnnotation(this.getTypeAnnotation(property.value))
           );
+          const leadingComment = property.leadingComments;
+          if (leadingComment) {
+            propertySignatureNode.leadingComments = [...leadingComment];
+          }
           propertySignatureNode.optional = true;
           return propertySignatureNode;
+        });
+        return t.tsTypeLiteral(properties);
+      }
+      case AstTypeEnum.arrayExpression: {
+        const union = new Map();
+        for (const element of value.elements as Array<unknown>) {
+          const elementType = this.getTypeAnnotation(element);
+          union.set(elementType.type, elementType);
         }
-      );
-      return t.tsTypeLiteral(properties);
+        const unionType = t.tsUnionType(
+          Array.from(union.values()) as t.TSType[]
+        );
+        return t.tsArrayType(unionType);
+      }
     }
-
-    if (isString(value)) {
-      return t.tsStringKeyword();
-    }
-
-    if (isBoolean(value)) {
-      return t.tsBooleanKeyword();
-    }
-
-    if (isNumber(value)) {
-      return t.tsNumberKeyword();
-    }
-
-    if (isNull(value)) {
-      return t.tsNullKeyword();
-    }
-
-    if (isUndefined(value)) {
-      return t.tsUndefinedKeyword();
-    }
-
-    if (isSymbol(value)) {
-      return t.tSSymbolKeyword();
-    }
-
-    if (isDate(value)) {
-      return t.tsTypeReference(t.identifier("Date"));
-    }
-
-    if (isRegExp(value)) {
-      return t.tsTypeReference(t.identifier("RegExp"));
-    }
-
-    if (isError(value)) {
-      return t.tsTypeReference(t.identifier("Error"));
-    }
-
     // 未知类型
     return t.tsUnknownKeyword();
   }

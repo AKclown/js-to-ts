@@ -17,9 +17,9 @@ export function activate(context: vscode.ExtensionContext) {
     );
 
         
-    const jsObjectToTsDisposable = commands.registerCommand(
+    const jsoTsDisposable = commands.registerCommand(
       COMMANDS.SWAGGER_TO_TYPESCRIPT_OBJECT_CONVERT,
-      mainInstant.jsObjectToTs,
+      mainInstant.jsToTs,
       mainInstant
     );
 
@@ -27,7 +27,7 @@ export function activate(context: vscode.ExtensionContext) {
     // Destroy
     // *********************
 
-    context.subscriptions.push(defaultDisposable,jsObjectToTsDisposable);
+    context.subscriptions.push(defaultDisposable,jsoTsDisposable);
   } catch (error) {
     console.log("error: ", error);
   }
