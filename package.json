@@ -30,7 +30,8 @@
   ],
   "activationEvents": [
     "onCommand:swagger.to.typescript.convert",
-    "onCommand:swagger.to.typescript.object.convert"
+    "onCommand:swagger.to.typescript.object.convert",
+    "onStartupFinished"
   ],
   "main": "./out/extension.js",
   "contributes": {
@@ -85,7 +86,25 @@
         "mac": "ctrl+shift+k",
         "when": "editorHasSelection"
       }
-    ]
+    ],
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "package-explorer",
+          "title": "API TO TS",
+          "icon": "images/outline-recovery-convert.svg"
+        }
+      ]
+    },
+    "views": {
+      "package-explorer": [
+        {
+          "id": "api.to.ts",
+          "name": "",
+          "type": "webview"
+        }
+      ]
+    }
   },
   "scripts": {
     "vscode:prepublish": "npm run compile",
