@@ -1,10 +1,14 @@
 import * as vscode from "vscode";
+import { Main } from "./Main";
 
 export class ApiToTsViewProvider implements vscode.WebviewViewProvider {
   public static readonly viewType = "api.to.ts";
   private _view?: vscode.WebviewView;
 
-  constructor(private readonly _extensionUri: vscode.Uri) {}
+  constructor(
+    private readonly _extensionUri: vscode.Uri,
+    private readonly _main: Main
+  ) {}
 
   public resolveWebviewView(
     webviewView: vscode.WebviewView,
@@ -23,28 +27,13 @@ export class ApiToTsViewProvider implements vscode.WebviewViewProvider {
     webviewView.webview.html = this._getHtmlForWebview(webviewView.webview);
 
     webviewView.webview.onDidReceiveMessage((data) => {
-      switch (data.type) {
-        case "colorSelected": {
-          vscode.window.activeTextEditor?.insertSnippet(
-            new vscode.SnippetString(`#${data.value}`)
-          );
-          break;
+      if (data.type === "pushData") {
+        const code = this._main.apiToTs(JSON.stringify(data.value));
+        if (this._view) {
+          this._view.webview.postMessage({ type: "pullData", value: code });
         }
       }
     });
-  }
-
-  public addColor() {
-    if (this._view) {
-      this._view.show?.(true); // `show` is not implemented in 1.49 but is for 1.50 insiders
-      this._view.webview.postMessage({ type: "addColor" });
-    }
-  }
-
-  public clearColors() {
-    if (this._view) {
-      this._view.webview.postMessage({ type: "clearColors" });
-    }
   }
 
   private _getHtmlForWebview(webview: vscode.Webview) {
@@ -123,7 +112,11 @@ export class ApiToTsViewProvider implements vscode.WebviewViewProvider {
               placeholder="Enter Your Params"
             ></textarea>
           </div>
-          <div id="types"></div>
+          
+          <div id = "types-container">
+            <textarea id="types"></textarea>
+            <button id="copy">COPY</button>
+          </div>
           <p id="error"></p>
         </article>
         <button id="API-TO-TS">API-TO-TS</button>

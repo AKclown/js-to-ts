@@ -22,8 +22,7 @@ export function activate(context: vscode.ExtensionContext) {
       mainInstant
     );
 
-    const provider = new ApiToTsViewProvider(context.extensionUri);
-    console.log('provider: ', provider);
+    const provider = new ApiToTsViewProvider(context.extensionUri, mainInstant);
 
     const apiToTsDisposable = window.registerWebviewViewProvider(
       ApiToTsViewProvider.viewType,

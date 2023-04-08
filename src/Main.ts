@@ -108,7 +108,25 @@ ${interfaceText.trim()}${content}
   }
 
   // *********************
-  // Js To Ts
+  // API TO TS
+  // *********************
+
+  apiToTs(code: string) {
+    const expressionAst: any = parseExpression(code);
+    let data: Array<unknown> = [];
+    const type = expressionAst.type as AstTypeEnum;
+    const variableName = uuidv4().slice(0, 4);
+    if (type === AstTypeEnum.objectExpression) {
+      data = expressionAst.properties;
+    } else if (type === AstTypeEnum.arrayExpression) {
+      data = expressionAst.elements;
+    }
+    const tsCode = this.analyzeAndGenerate(data, type, variableName);
+    return tsCode;
+  }
+
+  // *********************
+  // JS To TS
   // *********************
 
   jsToTs() {
@@ -127,7 +145,6 @@ ${interfaceText.trim()}${content}
       let data: Array<unknown> = [];
 
       if (regualar.test(text)) {
-        console.log("regualar.test(text): 121", regualar.test(text));
         // TODO: 类型未定义
         const ast: any = parse(text, { plugins: ["typescript"] });
         const declaration = ast.program.body[0].declarations[0];
@@ -143,7 +160,6 @@ ${interfaceText.trim()}${content}
         // 不能存在分号
         const updateText = text.trimRight().replace(/;$/, "");
         const expressionAst: any = parseExpression(updateText);
-        console.log("expressionAst: ", expressionAst);
         type = expressionAst.type as AstTypeEnum;
         variableName = uuidv4().slice(0, 4);
         if (type === AstTypeEnum.objectExpression) {
@@ -152,7 +168,7 @@ ${interfaceText.trim()}${content}
           data = expressionAst.elements;
         }
       }
-      const code = this.analyzeAndGenerate(data, type!, variableName!);
+      const code = this.analyzeAndGenerate(data, type, variableName);
       editor.edit((editorContext) => editorContext.replace(range, code));
     });
   }
@@ -168,7 +184,7 @@ ${interfaceText.trim()}${content}
       const typeProperties = data.map((property) => {
         const typeAnnotation = this.getTypeAnnotation(property.value);
         const propertySignatureNode = t.tsPropertySignature(
-          t.identifier(property.key.name),
+          t.identifier(property.key.name ?? property.key.value),
           t.tsTypeAnnotation(typeAnnotation)
         );
         const leadingComment = property.leadingComments;
@@ -233,7 +249,7 @@ ${interfaceText.trim()}${content}
       case AstTypeEnum.objectExpression: {
         const properties = value.properties.map((property: any) => {
           const propertySignatureNode = t.tsPropertySignature(
-            t.identifier(property.key.name),
+            t.identifier(property.key.name ?? property.key.value),
             t.tsTypeAnnotation(this.getTypeAnnotation(property.value))
           );
           const leadingComment = property.leadingComments;
