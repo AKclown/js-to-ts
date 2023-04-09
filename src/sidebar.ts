@@ -66,16 +66,14 @@ export class ApiToTsViewProvider implements vscode.WebviewViewProvider {
             Use a content security policy to only allow loading styles from our extension directory,
             and only allow scripts that have a specific nonce.
             (See the 'webview-sample' extension sample for img-src content security policy examples)
-            <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src ${webview.cspSource}; script-src 'nonce-${nonce}';">
         -->
-    
+        
+        <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src ${webview.cspSource}; script-src 'nonce-${nonce}';">
         <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     
-        <link href="http://127.0.0.1:5500/main.css" rel="stylesheet" />
-    
-        <!-- <link href="${styleResetUri}" rel="stylesheet">
+        <link href="${styleResetUri}" rel="stylesheet">
         <link href="${styleVSCodeUri}" rel="stylesheet">
-        <link href="${styleMainUri}" rel="stylesheet"> -->
+        <link href="${styleMainUri}" rel="stylesheet"> 
     
         <title>API TO TS</title>
       </head>
@@ -118,12 +116,18 @@ export class ApiToTsViewProvider implements vscode.WebviewViewProvider {
             <button id="copy">COPY</button>
           </div>
           <p id="error"></p>
+          <div id="loading">
+            <div class="loader-container">
+              <div class="loader-child"></div>
+              <div class="loader-child"></div>
+              <div class="loader-child"></div>
+            </div>
+          </div>
         </article>
         <button id="API-TO-TS">API-TO-TS</button>
     
-        <script  src="http://127.0.0.1:5500/main.js"></script>
     
-        <!-- <script nonce="${nonce}" src="${scriptUri}"></script> -->
+        <script nonce="${nonce}" src="${scriptUri}"></script> 
       </body>
     </html>
     `;

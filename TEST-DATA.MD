@@ -1,7 +1,7 @@
 ### 数据模拟
 
-[easyMock](https://mock.presstime.cn/project/64315e0835bc4b91ac0173a6)
-账号: AKclown
+[easyMock](https://mock.presstime.cn/project/64324d7248037aa2a4ae6397)
+账号: AKclown123
 
 ### 测试代码
 
