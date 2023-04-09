@@ -1,13 +1,16 @@
 ## JS To TS[中文版](./README-ZH.md)
 
-**Function 1:**&nbsp；convert objects of JavaScript to typescript type declaration.
-![模板](./images/jsToTs.jpg)
-**Function 2:**&nbsp；a plug-in that converts the type provided by the Swagger document to the typescript type automatically.
-![模板](./images/template.png)
+**Function 1:**&nbsp; Convert API return data to typescript type declaration.
+![apiToTs](./images/apiToTs.png)
+**Function 2:**&nbsp; convert objects of JavaScript to typescript type declaration.
+![jsToTs](./images/jsToTs.jpg)
+**Function 3:**&nbsp; a plug-in that converts the type provided by the Swagger document to the typescript type automatically.
+![template](./images/template.png)
 
 ## usage
-![教程](./images/jsToTs.gif)
-![教程](./images/tutorials.gif)
+![apiToTs](./images/apiToTs.gif)
+![jsToTs](./images/jsToTs.gif)
+![tutorials](./images/tutorials.gif)
 
 
 ## Keyboard shortcuts configuration.

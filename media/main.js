@@ -2,6 +2,8 @@
 
     const vscode = acquireVsCodeApi();
 
+    let nonce = '';
+
     document.querySelector('#API-TO-TS').addEventListener('click', () => {
         getData();
     });
@@ -12,26 +14,30 @@
 
     window.addEventListener('message', event => {
         const message = event.data; // The json data that the extension sent
-        console.log('message: ', message);
         if ('pullData' === message.type) {
             toggle('types');
             document.querySelector('#types').value = message.value;
             copyCode(message.value);
+        } else if ('pullNonce' === message.type) {
+            nonce = message.value;
         }
     });
+
+    // 获取到nonce
+    pushNonce();
 
     function getData() {
         try {
             toggle('loading');
             const method = document.querySelector('#method').value;
             let serverUrl = document.querySelector('#server-url').value;
-            let headers = document.querySelector('#headers').value.trim() || '{}';
-            headers = eval(`(${headers})`);
-            console.log('headers: ', headers);
-            let params = document.querySelector('#params').value.trim() || '{}';
-            params = eval(`(${params})`);
-            console.log('params: ', params);
-            console.log();
+            let headers = document.querySelector('#headers').value.trim() || "{}";
+            headers = headers.replace(/(\w+)\s*:/g, (match, p1) => `"${p1}":`).replace(/\'/g, "\"");
+            headers = JSON.parse(headers);
+            let params = document.querySelector('#params').value.trim() || "{}";
+            params = params.replace(/(\w+)\s*:/g, (match, p1) => `"${p1}":`).replace(/\'/g, "\"");
+            params = JSON.parse(params);
+
             if (serverUrl) {
                 if (['GET', 'DELETE'].includes(method)) {
                     if (Object.keys(params).length) {
@@ -77,6 +83,10 @@
 
     function pushData(data) {
         vscode.postMessage({ type: 'pushData', value: data });
+    }
+
+    function pushNonce() {
+        vscode.postMessage({ type: 'pushNonce' });
     }
 
     function copyCode(code) {

@@ -27,21 +27,20 @@ select {
   display: block;
   font-size: 16px;
   font-weight: bold;
-  color: rgb(204, 204, 204);
+  color: var(--vscode-input-foreground);
   line-height: 100%;
   padding: 10px;
   width: 100%;
-  border: 2px solid rgb(204, 204, 204);
+  border: none;
   border-radius: 5px;
-  background-color: transparent;
-
+  background-color: var(--vscode-input-background);
   appearance: none;
   -webkit-appearance: none;
   -moz-appearance: none;
 }
 
 select:focus {
-  outline-color: rgb(204, 204, 204);
+  outline-color: var(--vscode-input-border);
 }
 
 select:after {
@@ -50,60 +49,21 @@ select:after {
   top: 50%;
   right: 10px;
   transform: translateY(-50%);
-  color: rgb(204, 204, 204);
+  color: var(--vscode-input-foreground);
   pointer-events: none;
 }
 
 select option {
   font-size: 16px;
   font-weight: normal;
-  color: #444;
-  background-color: rgb(204, 204, 204);
-}
-
-/* input */
-input {
-  font-family: "Open Sans", sans-serif;
-  box-sizing: border-box;
-  display: block;
-  font-size: 16px;
-  color: rgb(204, 204, 204);
-  line-height: 1.3;
-  padding: 10px;
-  width: 100%;
-  border: 2px solid rgb(204, 204, 204);
-  border-radius: 5px;
-  background-color: transparent;
-}
-
-input:focus {
-  border-color: rgb(204, 204, 204);
-  box-shadow: 0 0 5px rgb(204, 204, 204);
-  outline: none;
+  color: var(--vscode-input-foreground);
+  background-color: var(--vscode-input-background);
 }
 
 /* textarea */
 textarea {
-  font-family: "Open Sans", sans-serif;
-  box-sizing: border-box;
-  display: block;
-  font-size: 16px;
-  color: rgb(204, 204, 204);
-  line-height: 1.3;
-  padding: 10px;
-  width: 100%;
   height: 80px;
-  border: 2px solid rgb(204, 204, 204);
-  border-radius: 5px;
-  background-color: transparent;
 }
-
-textarea:focus {
-  border-color: rgb(204, 204, 204);
-  box-shadow: 0 0 5px rgb(204, 204, 204);
-  outline: none;
-}
-
 ::-webkit-scrollbar {
   box-sizing: border-box;
   width: 8px;
@@ -187,6 +147,7 @@ button:disabled {
   position: absolute;
   bottom: 0;
   right: 0;
+  width: 100px;
 }
 
 /* loader-container */

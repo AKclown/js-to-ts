@@ -24,7 +24,13 @@ export class ApiToTsViewProvider implements vscode.WebviewViewProvider {
       localResourceRoots: [this._extensionUri],
     };
 
-    webviewView.webview.html = this._getHtmlForWebview(webviewView.webview);
+    // Use a nonce to only allow a specific script to be run.
+    const nonce = getNonce();
+
+    webviewView.webview.html = this._getHtmlForWebview(
+      webviewView.webview,
+      nonce
+    );
 
     webviewView.webview.onDidReceiveMessage((data) => {
       if (data.type === "pushData") {
@@ -32,11 +38,15 @@ export class ApiToTsViewProvider implements vscode.WebviewViewProvider {
         if (this._view) {
           this._view.webview.postMessage({ type: "pullData", value: code });
         }
+      } else if (data.type === "pushNonce") {
+        if (this._view) {
+          this._view.webview.postMessage({ type: "pullNonce", value: nonce });
+        }
       }
     });
   }
 
-  private _getHtmlForWebview(webview: vscode.Webview) {
+  private _getHtmlForWebview(webview: vscode.Webview, nonce: string) {
     // Get the local path to main script run in the webview, then convert it to a uri we can use in the webview.
     const scriptUri = webview.asWebviewUri(
       vscode.Uri.joinPath(this._extensionUri, "media", "main.js")
@@ -53,9 +63,6 @@ export class ApiToTsViewProvider implements vscode.WebviewViewProvider {
       vscode.Uri.joinPath(this._extensionUri, "media", "main.css")
     );
 
-    // Use a nonce to only allow a specific script to be run.
-    const nonce = getNonce();
-
     return `<!DOCTYPE html>
     <html lang="en">
       <head>
@@ -68,7 +75,7 @@ export class ApiToTsViewProvider implements vscode.WebviewViewProvider {
             (See the 'webview-sample' extension sample for img-src content security policy examples)
         -->
         
-        <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src ${webview.cspSource}; script-src 'nonce-${nonce}';">
+        <meta http-equiv="Content-Security-Policy" content="style-src ${webview.cspSource}; script-src 'nonce-${nonce}';" connect-src 'self';>
         <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     
         <link href="${styleResetUri}" rel="stylesheet">
