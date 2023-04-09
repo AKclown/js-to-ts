@@ -1,8 +1,8 @@
 {
   "name": "swagger-to-typescript",
   "displayName": "JS To TS",
-  "description": "Converts JS Object or Swagger type to typescript type",
-  "version": "0.2.4",
+  "description": "Converts JS to typescript type",
+  "version": "0.3.0",
   "publisher": "AKclown",
   "engines": {
     "vscode": "^1.63.0"
@@ -13,7 +13,7 @@
     "javascript",
     "Typescript",
     "JavaScript TO Typescript",
-    "Swagger To Typescript"
+    "API To Typescript"
 
   ],
   "homepage": "https://github.com/AKclown/swagger-to-typescript/blob/main/README.md",
