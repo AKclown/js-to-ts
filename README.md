@@ -16,8 +16,8 @@
 ## Keyboard shortcuts configuration.
 
 - Default button configuration (window & mac)
-1. Object conversion operation `ctrl+shift+j` (Function 1)
-2. Swagger conversion operation `ctrl+shift+k` (Function 2)
+1. Object conversion operation `ctrl+shift+j` (Function 2)
+2. Swagger conversion operation `ctrl+shift+k` (Function 3)
 
 - You can also make customize settings in the shortcut key setting interface.
 

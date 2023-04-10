@@ -16,8 +16,8 @@
 
 ## 快捷键配置
 - 默认按键配置(window & mac)
-1. Object转换操作 `ctrl+shift+j` (功能一)
-2. Swagger转换操作 `ctrl+shift+k` (功能二)
+1. Object转换操作 `ctrl+shift+j` (功能二)
+2. Swagger转换操作 `ctrl+shift+k` (功能三)
 
 - 你也可以去快捷键设置界面进行自定义设置
 

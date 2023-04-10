@@ -6,7 +6,7 @@ import * as t from "@babel/types";
 import { parse, parseExpression } from "@babel/parser";
 import { v4 as uuidv4 } from "uuid";
 
-enum AstTypeEnum {
+export enum AstTypeEnum {
   identifier = "Identifier",
   stringLiteral = "StringLiteral",
   numericLiteral = "NumericLiteral",
