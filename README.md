@@ -1,6 +1,7 @@
 ## JS To TS[中文版](./README-ZH.md)
 
-**Function 1:**&nbsp; Convert API return data to typescript type declaration.
+**Function 1:**&nbsp; Convert API return data to typescript type declaration.  
+PS: Automatically assign the type content to the clipboard
 ![apiToTs](./images/apiToTs.png)
 **Function 2:**&nbsp; convert objects of JavaScript to typescript type declaration.
 ![jsToTs](./images/jsToTs.jpg)

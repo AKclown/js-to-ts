@@ -1,6 +1,7 @@
 ## JS To TS
 
 **功能一:**&nbsp; 将api返回数据转为typescript类型声明
+PS: 自动将类型内容分配到剪贴板
 ![apiToTs](./images/apiToTs.png)
 **功能二:** &nbsp;将JavaScript对象转为typescript类型声明
 ![jsToTs](./images/jsToTs.jpg)
