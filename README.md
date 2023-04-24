@@ -19,6 +19,7 @@ PS: Automatically assign the type content to the clipboard
 - Default button configuration (window & mac)
 1. Object conversion operation `ctrl+shift+j` (Function 2)
 2. Swagger conversion operation `ctrl+shift+k` (Function 3)
+3. Add Block Comments `ctrl+'` (Function 4 => /**  */)
 
 - You can also make customize settings in the shortcut key setting interface.
 

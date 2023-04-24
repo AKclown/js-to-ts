@@ -40,6 +40,23 @@ export class Main extends BaseClass implements IMain {
   private blockRegular = /([^\{]*\{)([^\{\}]+)(\})/gm;
 
   // *********************
+  // Add Block Command
+  // *********************
+
+  /** 添加注释 */
+  addBlockComments() {
+    // TODO: 未完成
+    const editor = window.activeTextEditor;
+    if (editor) {
+      const active = editor.selection.active;
+      editor.edit((editorContext) => {
+        editorContext.insert(active, `/**  */`);
+      });
+      this.setCursorPosition(active.line, active.character + 4);
+    }
+  }
+
+  // *********************
   // Swagger To TS
   // *********************
 

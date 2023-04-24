@@ -1,4 +1,4 @@
-import { Range, window } from "vscode";
+import { Position, Range, Selection, window } from "vscode";
 import {
   IBaseClass,
   ReturnSelectedInfo,
@@ -27,5 +27,16 @@ export class BaseClass implements IBaseClass {
       });
     }
     return data;
+  }
+
+  /** 设置光标位置 */
+  setCursorPosition(line: number, character: number): void {
+    const editor = window.activeTextEditor;
+    if (editor) {
+      const newPosition = new Position(line, character);
+      const newSelection = new Selection(newPosition, newPosition);
+      console.log('newSelection: ', newSelection);
+      editor.selection = newSelection;
+    }
   }
 }

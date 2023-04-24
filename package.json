@@ -2,7 +2,7 @@
   "name": "swagger-to-typescript",
   "displayName": "JS To TS",
   "description": "Converts JS to typescript type",
-  "version": "0.3.1",
+  "version": "0.3.2",
   "publisher": "AKclown",
   "engines": {
     "vscode": "^1.63.0"
@@ -85,6 +85,12 @@
         "key": "ctrl+shift+k",
         "mac": "ctrl+shift+k",
         "when": "editorHasSelection"
+      },
+      {
+        "command": "swagger.to.typescript.add.comments",
+        "key": "ctrl+oem_7",
+        "mac": "ctrl+oem_7",
+        "when": "editorTextFocus && !editorReadonly"
       }
     ],
     "viewsContainers": {

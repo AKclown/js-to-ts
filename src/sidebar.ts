@@ -67,8 +67,6 @@ export class ApiToTsViewProvider implements vscode.WebviewViewProvider {
     <html lang="en">
       <head>
         <meta charset="UTF-8" />
-    
-        
         <!--
             Use a content security policy to only allow loading styles from our extension directory,
             and only allow scripts that have a specific nonce.

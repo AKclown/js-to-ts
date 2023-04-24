@@ -22,8 +22,13 @@ export function activate(context: vscode.ExtensionContext) {
       mainInstant
     );
 
-    const provider = new ApiToTsViewProvider(context.extensionUri, mainInstant);
+    const addBlockComments = commands.registerCommand(
+      COMMANDS.SWAGGER_TO_TYPESCRIPT_ADD_COMMENTS,
+      mainInstant.addBlockComments,
+      mainInstant
+    );
 
+    const provider = new ApiToTsViewProvider(context.extensionUri, mainInstant);
     const apiToTsDisposable = window.registerWebviewViewProvider(
       ApiToTsViewProvider.viewType,
       provider
@@ -36,6 +41,7 @@ export function activate(context: vscode.ExtensionContext) {
     context.subscriptions.push(
       defaultDisposable,
       jsoTsDisposable,
+      addBlockComments,
       apiToTsDisposable
     );
   } catch (error) {
