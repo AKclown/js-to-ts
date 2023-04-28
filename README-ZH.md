@@ -16,7 +16,7 @@ PS: 自动将类型内容分配到剪贴板
 ![tutorials](./images/tutorials.gif)
 
 ## 快捷键配置
-- 默认按键配置(window & mac)
+- 默认按键配置(window & mac[ctrl -> control])
 1. Object转换操作 `ctrl+shift+j` (功能二)
 2. Swagger转换操作 `ctrl+shift+k` (功能三)
 3. 添加块级注释行 `ctrl+'` (功能四 => /**  */)
