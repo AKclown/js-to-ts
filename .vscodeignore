@@ -1,7 +1,6 @@
 .vscode/**
 .vscode-test/**
 src/**
-media/**
 images/**.gif
 .gitignore
 .yarnrc
@@ -10,3 +9,4 @@ images/**.gif
 **/*.map
 **/*.ts
 node_modules/**
+vsc-extension-quickstart.md

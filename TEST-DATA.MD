@@ -45,3 +45,11 @@ const AKclown = {
   isPromise: new Promise(() => {}),
 };
 ```
+
+```ts
+ApiResponse«List«AKclownx»»{
+    code (string, optional): 响应code,
+    data (Array[AKclown], optional): 第三方返回相关数据,
+    msg (string,optional): 错误信息
+}
+```
