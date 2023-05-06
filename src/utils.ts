@@ -36,7 +36,7 @@ export function isError (o:unknown) { //是否错误对象
 
 export function isSymbol (o:unknown) { //是否Symbol函数
     return Object.prototype.toString.call(o).slice(8, -1) === 'Symbol';
-    
+
 }
 
 export function isPromise (o:unknown) { //是否Promise对象

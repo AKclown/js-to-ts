@@ -5,6 +5,8 @@ import generate from "@babel/generator";
 import * as t from "@babel/types";
 import { parse, parseExpression } from "@babel/parser";
 import { v4 as uuidv4 } from "uuid";
+import { isArray, isObj } from './utils';
+import { strParse } from './helper';
 
 export enum AstTypeEnum {
   identifier = "Identifier",
@@ -38,6 +40,7 @@ export class Main extends BaseClass implements IMain {
   private nameRegular = /([a-zA-Z]*)(«(?:[\w|«|»])+»)?(?:\s)*(\{)/m;
   private contentRegular = /(\w+).*\(([^,]+).*\)((?:\:)([^,|}|\r|\n]+))?/g;
   private blockRegular = /([^\{]*\{)([^\{\}]+)(\})/gm;
+  private children: Array<string> = [];
 
   // *********************
   // Add Block Command
@@ -97,6 +100,61 @@ ${interfaceText.trim()}${content}
   getInterface(text: string): string {
     const names = text.match(this.nameRegular);
     return names ? `export interface ${names[1]} ${names[3]}\n\t` : "";
+  }
+
+  /**
+   * 判断当前是否为子节点
+   * @param obj
+   * @param key
+   * @param types
+   * @returns
+   */
+  isChild(obj: any, key: string, types: any): boolean {
+    const itemTypes = Object.fromEntries(Object.entries(obj).map(([k, v]) => [k, typeof v]).filter(item => item[0] !== key).sort());
+    const { [key]: ch, ...child } = types;
+    return JSON.stringify(itemTypes) === JSON.stringify(child);
+  }
+
+  /**
+   * 过滤所有child的键
+   * @param node 对象
+   * @returns
+   */
+  filterChildKeys(node: any): Array<string> {
+    const types = Object.fromEntries(Object.entries(node).map(([k, v]) => [k, typeof v]).sort());
+    return Object.keys(node).filter((k) => {
+      const value = node[k];
+      if (isObj(value)) {
+        return this.isChild(value, k, types);
+      } else if (isArray(value)) {
+        return value.every((item: any) => this.isChild(item, k, types));
+      }
+      return false;
+    });
+  }
+
+  /**
+   * 自调用命名
+   */
+  selfCallingName(code: string, text: string, name: string): string {
+    const originalObj = strParse(text.replace(/(var|let|const)\s*\w+\s*=\s+/, '').trimRight().replace(/;$/, "")); // 原始对象数据
+    this.children = this.filterChildKeys(originalObj);
+    this.children.forEach((item) => {
+      const len = `${item}?: `.length;
+      const left = code.indexOf(`${item}?: `) + len;
+      let right = left + 1;
+      const stack = [code[right]];
+      while(stack.length) {
+        right++;
+        if(['(','[','{'].includes(code[right])) {
+          stack.push(code[right]);
+        } else if ([')',']','}'].includes(code[right])) {
+          stack.pop();
+        }
+      }
+      code = code.replace(code.slice(left, right + 2), name);
+    });
+    return code;
   }
 
   /** 获取内容类型模板 */
@@ -186,7 +244,9 @@ ${interfaceText.trim()}${content}
         }
       }
       const code = this.analyzeAndGenerate(data, type, variableName);
-      editor.edit((editorContext) => editorContext.replace(range, code));
+      console.log('code: ', code);
+      const replaceText = this.selfCallingName(code, text, `I${variableName}`); // 启用自调用
+      editor.edit((editorContext) => editorContext.replace(range, replaceText));
     });
   }
 
