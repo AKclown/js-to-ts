@@ -2,6 +2,7 @@
 .vscode-test/**
 src/**
 images/**.gif
+images/**.jpg
 .gitignore
 .yarnrc
 **/tsconfig.json

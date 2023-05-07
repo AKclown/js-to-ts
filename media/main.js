@@ -32,11 +32,9 @@
             const method = document.querySelector('#method').value;
             let serverUrl = document.querySelector('#server-url').value;
             let headers = document.querySelector('#headers').value.trim() || "{}";
-            headers = headers.replace(/(\w+)\s*:/g, (match, p1) => `"${p1}":`).replace(/\'/g, "\"");
-            headers = JSON.parse(headers);
+            headers = jsonToObject(headers);
             let params = document.querySelector('#params').value.trim() || "{}";
-            params = params.replace(/(\w+)\s*:/g, (match, p1) => `"${p1}":`).replace(/\'/g, "\"");
-            params = JSON.parse(params);
+            params = jsonToObject(params);
 
             if (serverUrl) {
                 if (['GET', 'DELETE'].includes(method)) {
@@ -64,6 +62,13 @@
         } catch (error) {
             printError(error);
         }
+    }
+
+    function jsonToObject(json) {
+        return JSON.parse(json.replace(/(\w+)\s*:/g, (match, p1) => `"${p1}":`)
+            .replace(/\'/g, "\"")
+            // 去掉末尾的,
+            .replace(/,(\}|\])/g, (match, p1) => `${p1}`));
     }
 
     // type: 'loading' | 'error' | 'types' | 'none'

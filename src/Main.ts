@@ -12,6 +12,8 @@ export enum AstTypeEnum {
   numericLiteral = "NumericLiteral",
   booleanLiteral = "BooleanLiteral",
   nullLiteral = "NullLiteral",
+  templateLiteral = 'TemplateLiteral',
+  bigintLiteral = 'BigintLiteral',
   newExpression = "NewExpression",
   callExpression = "CallExpression",
   objectExpression = "ObjectExpression",

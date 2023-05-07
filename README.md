@@ -2,11 +2,11 @@
 
 **Function 1:**&nbsp; Convert API return data to typescript type declaration.  
 PS: Automatically assign the type content to the clipboard
-![apiToTs](./images/apiToTs.png)
+![apiToTs](./images/apiToTs.jpg)
 **Function 2:**&nbsp; convert objects of JavaScript to typescript type declaration.
 ![jsToTs](./images/jsToTs.jpg)
 **Function 3:**&nbsp; a plug-in that converts the type provided by the Swagger document to the typescript type automatically.
-![template](./images/template.png)
+![template](./images/template.jpg)
 
 ## usage
 ![apiToTs](./images/apiToTs.gif)
