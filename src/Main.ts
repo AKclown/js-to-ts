@@ -6,7 +6,7 @@ import * as t from "@babel/types";
 import { parse, parseExpression } from "@babel/parser";
 import { v4 as uuidv4 } from "uuid";
 import { isArray, isObj } from './utils';
-import { strParse } from './helper';
+import { strParse, attributeSort } from './helper';
 
 export enum AstTypeEnum {
   identifier = "Identifier",
@@ -109,10 +109,11 @@ ${interfaceText.trim()}${content}
    * @param types
    * @returns
    */
-  isChild(obj: any, key: string, types: any): boolean {
-    const itemTypes = Object.fromEntries(Object.entries(obj).map(([k, v]) => [k, typeof v]).filter(item => item[0] !== key).sort());
+  isChild(itemTypes: any, key: string, types: any): boolean {
     const { [key]: ch, ...child } = types;
-    return JSON.stringify(itemTypes) === JSON.stringify(child);
+    const { [key]: val, ...item } = itemTypes;
+    console.log('json', JSON.stringify(item), JSON.stringify(child));
+    return JSON.stringify(item) === JSON.stringify(child);
   }
 
   /**
@@ -121,34 +122,87 @@ ${interfaceText.trim()}${content}
    * @returns
    */
   filterChildKeys(node: any): Array<string> {
-    const types = Object.fromEntries(Object.entries(node).map(([k, v]) => [k, typeof v]).sort());
-    return Object.keys(node).filter((k) => {
-      const value = node[k];
+    const types = attributeSort(node);
+    return Object.keys(node).filter((key) => {
+      const value = node[key];
       if (isObj(value)) {
-        return this.isChild(value, k, types);
+        return this.isChild(attributeSort(value), key, types);
       } else if (isArray(value)) {
-        return value.every((item: any) => this.isChild(item, k, types));
+        return value.every((item: any) => this.isChild(attributeSort(item), key, types));
       }
       return false;
     });
   }
 
   /**
+   * 根据babel生成的字符串生成对象
+   * @param str
+   */
+  getObjectByStr(str: string, level: number = 0): any {
+    const entries = [];
+    while (str.indexOf('{') !== -1) {
+      let stackLen = 0;
+      let left = str.indexOf('{'), right = left;
+      if (left !== -1) {
+        stackLen++;
+      }
+
+      while (stackLen) {
+        right++;
+        if (str[right] === '}') {
+          stackLen--;
+        } else if (str[right] === '{') {
+          stackLen++;
+        }
+      }
+
+      const value = this.getObjectByStr(str.slice(left + 1, right));
+      str = str.slice(0, left) + str.slice(right + 1);
+      while (/\W/.test(str[left])) {
+        left--;
+      }
+
+      right = left + 1;
+      while (str[left] !== ';' && left >= 0) {
+        left--;
+      }
+      const key = str.slice(left + 1, right);
+
+      str = str.slice(0, left + 1) + str.slice(right);
+      entries.push([key, value]);
+    }
+
+    entries.push(...(str.split(';').map(item => item.split('?:'))).filter(item => item[0] && item[1]));
+    return Object.fromEntries(entries); // 返回一个对象
+  }
+
+  /**
+   * 移除接口类型名称以及注释
+   */
+  getInterfaceInnerText(code: string): string {
+    let left = code.indexOf('{') + 1;
+    // 这里需要先去除单行注释，再去除空格，最后去除多行注释
+    // 暂时未排除为何不能使用/(\/\/.*\n|\/\*(.|\n)*\*\/)/一次性去除注释，该正则浏览器可正确执行
+    return code.slice(left, code.length - 1).replace(/\/\/.*\n/g, '').replace(/(\n|\s)/g, '').replace(/\/\*(.|\n)*\*\//, '');
+  }
+
+  /**
    * 自调用命名
    */
-  selfCallingName(code: string, text: string, name: string): string {
-    const originalObj = strParse(text.replace(/(var|let|const)\s*\w+\s*=\s+/, '').trimRight().replace(/;$/, "")); // 原始对象数据
-    this.children = this.filterChildKeys(originalObj);
+  selfCallingName(code: string, name: string): string {
+    const interfaceInnerText = this.getInterfaceInnerText(code); // 得到接口内部文本
+    const originalObj = this.getObjectByStr(interfaceInnerText); // 根据内部文本将字符串转为对象
+    this.children = this.filterChildKeys(originalObj); // 根据对象获得子节点键
     this.children.forEach((item) => {
       const len = `${item}?: `.length;
       const left = code.indexOf(`${item}?: `) + len;
       let right = left + 1;
       const stack = [code[right]];
-      while(stack.length) {
+      while (stack.length) {
         right++;
-        if(['(','[','{'].includes(code[right])) {
+        if (['(', '[', '{'].includes(code[right])) {
           stack.push(code[right]);
-        } else if ([')',']','}'].includes(code[right])) {
+        } else if ([')', ']', '}'].includes(code[right])) {
           stack.pop();
         }
       }
@@ -244,8 +298,7 @@ ${interfaceText.trim()}${content}
         }
       }
       const code = this.analyzeAndGenerate(data, type, variableName);
-      console.log('code: ', code);
-      const replaceText = this.selfCallingName(code, text, `I${variableName}`); // 启用自调用
+      const replaceText = this.selfCallingName(code, `I${variableName}`); // 启用自调用
       editor.edit((editorContext) => editorContext.replace(range, replaceText));
     });
   }
