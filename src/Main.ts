@@ -102,24 +102,47 @@ ${interfaceText.trim()}${content}
     return names ? `export interface ${names[1]} ${names[3]}\n\t` : "";
   }
 
+  /** 获取内容类型模板 */
+  getContent(text: string): string {
+    let contents = null;
+    let contentText = "";
+    while ((contents = this.contentRegular.exec(text))) {
+      let note = contents[4] ? `/** ${contents[4].trim()} */` : "";
+      const type = this.formatType(contents[2]);
+      contentText = `${contentText}
+  ${note}
+  ${contents[1].trim()}?:${type};`;
+    }
+    return contentText;
+  }
+
+
+  // *********************
+  // API TO TS
+  // *********************
+
+  /** 类型格式化 */
+  formatType(type: string): string {
+    if (type === "integer") {
+      return "number";
+    } else if (type.search(/Array/g) !== -1) {
+      const mat = type.match(/(?:\[)(.*)(?:\])/);
+      return mat ? mat[1] : "unknown";
+    }
+    return type;
+  }
+
   /**
    * 判断当前是否为子节点
-   * @param obj
-   * @param key
-   * @param types
-   * @returns
    */
   isChild(itemTypes: any, key: string, types: any): boolean {
     const { [key]: ch, ...child } = types;
     const { [key]: val, ...item } = itemTypes;
-    console.log('json', JSON.stringify(item), JSON.stringify(child));
     return JSON.stringify(item) === JSON.stringify(child);
   }
 
   /**
    * 过滤所有child的键
-   * @param node 对象
-   * @returns
    */
   filterChildKeys(node: any): Array<string> {
     const types = attributeSort(node);
@@ -136,7 +159,6 @@ ${interfaceText.trim()}${content}
 
   /**
    * 根据babel生成的字符串生成对象
-   * @param str
    */
   getObjectByStr(str: string, level: number = 0): any {
     const entries = [];
@@ -211,34 +233,6 @@ ${interfaceText.trim()}${content}
     return code;
   }
 
-  /** 获取内容类型模板 */
-  getContent(text: string): string {
-    let contents = null;
-    let contentText = "";
-    while ((contents = this.contentRegular.exec(text))) {
-      let note = contents[4] ? `/** ${contents[4].trim()} */` : "";
-      const type = this.formatType(contents[2]);
-      contentText = `${contentText}
-  ${note}
-  ${contents[1].trim()}?:${type};`;
-    }
-    return contentText;
-  }
-
-  /** 类型格式化 */
-  formatType(type: string): string {
-    if (type === "integer") {
-      return "number";
-    } else if (type.search(/Array/g) !== -1) {
-      const mat = type.match(/(?:\[)(.*)(?:\])/);
-      return mat ? mat[1] : "unknown";
-    }
-    return type;
-  }
-
-  // *********************
-  // API TO TS
-  // *********************
 
   apiToTs(code: string) {
     const expressionAst: any = parseExpression(code);
