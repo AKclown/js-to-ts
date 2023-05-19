@@ -1,0 +1,12 @@
+{
+    "js.to.ts.object.to.typescript": "JS转换TS",
+    "js.to.ts.swagger.to.typescript": "Swagger转换TS",
+    "js.to.ts": "JS TO TS",
+    "js.to.ts.api.to.ts": "API TO TS",
+    "js.to.ts.server.url": "服务器地址",
+    "js.to.ts.enter.your.server.url": "输入你的服务器地址",
+    "js.to.ts.headers": "标头",
+    "js.to.ts.enter.your.headers": "输入你的标头",
+    "js.to.ts.params": "参数",
+    "js.to.ts.enter.your.params": "输入你的参数"
+}

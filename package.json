@@ -2,7 +2,7 @@
   "name": "swagger-to-typescript",
   "displayName": "JS To TS",
   "description": "Converts JS to typescript type",
-  "version": "0.3.5",
+  "version": "0.3.7",
   "publisher": "AKclown",
   "engines": {
     "vscode": "^1.63.0"
@@ -39,12 +39,12 @@
       {
         "category": "Swagger To Typescript",
         "command": "swagger.to.typescript.object.convert",
-        "title": "Object To Typescript"
+        "title": "%js.to.ts.object.to.typescript%"
       },
       {
         "category": "Swagger To Typescript",
         "command": "swagger.to.typescript.convert",
-        "title": "Swagger To Typescript"
+        "title": "%js.to.ts.swagger.to.typescript%"
       }
     ],
     "menus": {
@@ -70,7 +70,7 @@
     "submenus": [
       {
         "id": "swagger.to.typescript.context",
-        "label": "JS To TS"
+        "label": "%js.to.ts%"
       }
     ],
     "keybindings": [
@@ -97,7 +97,7 @@
       "activitybar": [
         {
           "id": "package-explorer",
-          "title": "API TO TS",
+          "title": "%js.to.ts%",
           "icon": "images/outline-recovery-convert.svg"
         }
       ]
@@ -122,6 +122,7 @@
   },
   "devDependencies": {
     "@types/babel__generator": "^7.6.4",
+    "@types/fs-extra": "^9.0.7",
     "@types/glob": "^7.1.4",
     "@types/mocha": "^9.0.0",
     "@types/node": "14.x",
@@ -139,6 +140,7 @@
     "@babel/generator": "^7.20.14",
     "@babel/parser": "^7.21.4",
     "@babel/types": "^7.20.7",
+    "fs-extra": "^11.1.1",
     "uuid": "^9.0.0"
   }
 }

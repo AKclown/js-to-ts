@@ -1,0 +1,12 @@
+{
+    "js.to.ts.object.to.typescript": "Object To Typescript",
+    "js.to.ts.swagger.to.typescript": "Swagger To Typescript",
+    "js.to.ts": "JS TO TS",
+    "js.to.ts.api.to.ts": "API TO TS",
+    "js.to.ts.server.url": "Server URL",
+    "js.to.ts.enter.your.server.url": "Enter Your Server Url",
+    "js.to.ts.headers": "Headers",
+    "js.to.ts.enter.your.headers": "Enter Your Headers",
+    "js.to.ts.params": "Params",
+    "js.to.ts.enter.your.params": "Enter Your Params"
+}

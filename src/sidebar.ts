@@ -1,5 +1,6 @@
 import * as vscode from "vscode";
 import { Main } from "./Main";
+import localize from'./localize';
 
 export class ApiToTsViewProvider implements vscode.WebviewViewProvider {
   public static readonly viewType = "api.to.ts";
@@ -92,27 +93,27 @@ export class ApiToTsViewProvider implements vscode.WebviewViewProvider {
             <option value="DELETE">DELETE</option>
           </select>
           <div>
-            <p>Server URL</p>
+            <p>${localize('js.to.ts.server.url')}</p>
             <input
               id="server-url"
               type="text"
-              placeholder="Enter Your Server Url"
+              placeholder=${localize('js.to.ts.enter.your.server.url')}
             />
           </div>
           <div>
-            <p>Headers</p>
+            <p>${localize('js.to.ts.headers')}</p>
             <textarea
               name=""
               id="headers"
-              placeholder="Enter Your Headers"
+              placeholder=${localize('js.to.ts.enter.your.headers')}
             ></textarea>
           </div>
           <div>
-            <p>Params</p>
+            <p>${localize('js.to.ts.params')}</p>
             <textarea
               name=""
               id="params"
-              placeholder="Enter Your Params"
+              placeholder=${localize('js.to.ts.enter.your.params')}
             ></textarea>
           </div>
           
