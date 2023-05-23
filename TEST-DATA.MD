@@ -41,9 +41,14 @@ const AKclown = {
   isSymbol: Symbol(),
   isDate: new Date(),
   isRegExp: new RegExp("ab+c"),
+  isLiteralRegExp: /asdas/,
   isError: new Error(),
   isPromise: new Promise(() => {}),
+  isCallback: (a: number, b: unknown, c = 1, ...rest) => {
+    console.log(a, b, rest);
+  },
 };
+
 ```
 
 ```ts
