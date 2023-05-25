@@ -2,10 +2,8 @@ import { window } from "vscode";
 import * as t from "@babel/types";
 import generate from "@babel/generator";
 import traverse, { NodePath, Visitor } from "@babel/traverse";
-import { ParseResult, parse, parseExpression } from "@babel/parser";
+import { ParseResult, parse } from "@babel/parser";
 import { v4 as uuidv4 } from "uuid";
-import { isArray, isObj } from "./utils";
-import { attributeSort } from "./helper";
 import { BaseClass } from "./BaseClass";
 import { IMain } from "./interface/Main.interface";
 
@@ -43,7 +41,6 @@ export class Main extends BaseClass implements IMain {
   private nameRegular = /([a-zA-Z]*)(«(?:[\w|«|»])+»)?(?:\s)*(\{)/m;
   private contentRegular = /(\w+).*\(([^,]+).*\)((?:\:)([^,|}|\r|\n]+))?/g;
   private blockRegular = /([^\{]*\{)([^\{\}]+)(\})/gm;
-  private children: Array<string> = [];
 
   // *********************
   // Add Block Command
@@ -119,10 +116,6 @@ ${interfaceText.trim()}${content}
     return contentText;
   }
 
-  // *********************
-  // API TO TS
-  // *********************
-
   /** 类型格式化 */
   formatType(type: string): string {
     if (type === "integer") {
@@ -134,130 +127,12 @@ ${interfaceText.trim()}${content}
     return type;
   }
 
-  /**
-   * 判断当前是否为子节点
-   */
-  isChild(itemTypes: any, key: string, types: any): boolean {
-    const { [key]: ch, ...child } = types;
-    const { [key]: val, ...item } = itemTypes;
-    return JSON.stringify(item) === JSON.stringify(child);
-  }
-
-  /**
-   * 过滤所有child的键
-   */
-  filterChildKeys(node: any): Array<string> {
-    const types = attributeSort(node);
-    return Object.keys(node).filter((key) => {
-      const value = node[key];
-      if (isObj(value)) {
-        return this.isChild(attributeSort(value), key, types);
-      } else if (isArray(value)) {
-        return value.every((item: any) =>
-          this.isChild(attributeSort(item), key, types)
-        );
-      }
-      return false;
-    });
-  }
-
-  /**
-   * 根据babel生成的字符串生成对象
-   */
-  getObjectByStr(str: string, level: number = 0): any {
-    const entries = [];
-    while (str.indexOf("{") !== -1) {
-      let stackLen = 0;
-      let left = str.indexOf("{"),
-        right = left;
-      if (left !== -1) {
-        stackLen++;
-      }
-
-      while (stackLen) {
-        right++;
-        if (str[right] === "}") {
-          stackLen--;
-        } else if (str[right] === "{") {
-          stackLen++;
-        }
-      }
-
-      const value = this.getObjectByStr(str.slice(left + 1, right));
-      str = str.slice(0, left) + str.slice(right + 1);
-      while (/\W/.test(str[left])) {
-        left--;
-      }
-
-      right = left + 1;
-      while (str[left] !== ";" && left >= 0) {
-        left--;
-      }
-      const key = str.slice(left + 1, right);
-
-      str = str.slice(0, left + 1) + str.slice(right);
-      entries.push([key, value]);
-    }
-
-    entries.push(
-      ...str
-        .split(";")
-        .map((item) => item.split("?:"))
-        .filter((item) => item[0] && item[1])
-    );
-    return Object.fromEntries(entries); // 返回一个对象
-  }
-
-  /**
-   * 移除接口类型名称以及注释
-   */
-  getInterfaceInnerText(code: string): string {
-    let left = code.indexOf("{") + 1;
-    // 这里需要先去除单行注释，再去除空格，最后去除多行注释
-    // 暂时未排除为何不能使用/(\/\/.*\n|\/\*(.|\n)*\*\/)/一次性去除注释，该正则浏览器可正确执行
-    return code
-      .slice(left, code.length - 1)
-      .replace(/\/\/.*\n/g, "")
-      .replace(/(\n|\s)/g, "")
-      .replace(/\/\*(.|\n)*\*\//, "");
-  }
-
-  /**
-   * 自调用命名
-   */
-  selfCallingName(code: string, name: string): string {
-    const interfaceInnerText = this.getInterfaceInnerText(code); // 得到接口内部文本
-    const originalObj = this.getObjectByStr(interfaceInnerText); // 根据内部文本将字符串转为对象
-    this.children = this.filterChildKeys(originalObj); // 根据对象获得子节点键
-    this.children.forEach((item) => {
-      const len = `${item}?: `.length;
-      const left = code.indexOf(`${item}?: `) + len;
-      let right = left + 1;
-      const stack = [code[right]];
-      while (stack.length) {
-        right++;
-        if (["(", "[", "{"].includes(code[right])) {
-          stack.push(code[right]);
-        } else if ([")", "]", "}"].includes(code[right])) {
-          stack.pop();
-        }
-      }
-      code = code.replace(code.slice(left, right + 2), name);
-    });
-    return code;
-  }
+  // *********************
+  // API TO TS
+  // *********************
 
   apiToTs(code: string) {
-    const expressionAst: any = parseExpression(code);
-    let data: Array<unknown> = [];
-    const type = expressionAst.type as AstTypeEnum;
-    const variableName = uuidv4().slice(0, 4);
-    if (type === AstTypeEnum.objectExpression) {
-      data = expressionAst.properties;
-    } else if (type === AstTypeEnum.arrayExpression) {
-      data = expressionAst.elements;
-    }
-    const tsCode = this.analyzeAndGenerate(data, type, variableName);
+    const tsCode = this.parseCode(code.toString());
     return tsCode;
   }
 
@@ -271,155 +146,36 @@ ${interfaceText.trim()}${content}
     if (!editor) {
       return;
     }
-    // 是否为赋值语句
-    const regualar = /(var|let|const)\s*\w+\s*=.*/;
-
     selectData.forEach((item) => {
       const { text, range } = item;
-      let type: AstTypeEnum;
-      let variableName: string;
-      let data: Array<unknown> = [];
-
-      if (regualar.test(text)) {
-        // TODO: 类型未定义
-        const ast: ParseResult<t.File> = parse(text, {
-          plugins: ["typescript"],
-        });
-        this.traverseCode(ast);
-
-        const code = generate(ast).code;
-        console.log("code: ", code);
-
-        // const declaration = ast.program.body[0].declarations[0];
-        // variableName = declaration.id.name;
-        // type = declaration.init.type;
-
-        // if (type === AstTypeEnum.objectExpression) {
-        //   data = declaration.init.properties;
-        // } else if (type === AstTypeEnum.arrayExpression) {
-        //   data = declaration.init.elements;
-        // }
-      } else {
-        // 不能存在分号
-        const updateText = text.trimRight().replace(/;$/, "");
-        const expressionAst: any = parseExpression(updateText);
-        type = expressionAst.type as AstTypeEnum;
-        variableName = uuidv4().slice(0, 4);
-        if (type === AstTypeEnum.objectExpression) {
-          data = expressionAst.properties;
-        } else if (type === AstTypeEnum.arrayExpression) {
-          data = expressionAst.elements;
-        }
-      }
-
-      // const code = this.analyzeAndGenerate(data, type, variableName);
-      // const replaceText = this.selfCallingName(code, `I${variableName}`); // 启用自调用
-      // editor.edit((editorContext) => editorContext.replace(range, replaceText));
+      const code = this.parseCode(text);
+      editor.edit((editorContext) => editorContext.replace(range, code));
     });
   }
 
-  // TODO:类型未定义
-  analyzeAndGenerate(
-    data: Array<any>,
-    type: AstTypeEnum,
-    variableName: string
-  ) {
-    let typeAlias = null;
-    if (type === AstTypeEnum.objectExpression) {
-      const typeProperties = data.map((property) => {
-        const typeAnnotation = this.getTypeAnnotation(property.value);
-        const propertySignatureNode = t.tsPropertySignature(
-          t.identifier(property.key.name ?? property.key.value),
-          t.tsTypeAnnotation(typeAnnotation)
-        );
-        const leadingComment = property.leadingComments;
-        if (leadingComment) {
-          propertySignatureNode.leadingComments = [...leadingComment];
-        }
-        propertySignatureNode.optional = true;
-        return propertySignatureNode;
-      });
-      typeAlias = t.tsInterfaceDeclaration(
-        t.identifier(`I${variableName}`),
-        null,
-        null,
-        t.tsInterfaceBody(typeProperties!)
-      );
-    } else if (type === AstTypeEnum.arrayExpression) {
-      const typeAnnotation = this.getTypeAnnotation({ elements: data, type });
-      typeAlias = t.tsTypeAliasDeclaration(
-        t.identifier(`I${variableName}`),
-        null,
-        typeAnnotation
-      );
-    }
+  // *********************
+  // COMMENT
+  // *********************
 
-    const ast = t.file(t.program([typeAlias!]));
+  parseCode(text: string): string {
+    const regualar = /(var|let|const)\s*\w+\s*=.*/;
+    let updateText = text;
+    // 判断是否存在变量
+    if (!regualar.test(updateText)) {
+      // 不能存在分号
+      const variableName = uuidv4().slice(0, 4);
+      updateText = `const A${variableName} = ${updateText}`
+        .trimRight()
+        .replace(/;$/, "");
+    }
+    console.log('updateText: ', updateText);
+
+    const ast: ParseResult<t.File> = parse(updateText, {
+      plugins: ["typescript"],
+    });
+    this.traverseCode(ast);
     const code = generate(ast).code;
     return code;
-  }
-
-  getTypeAnnotation(value: any) {
-    switch (value.type) {
-      case AstTypeEnum.stringLiteral: {
-        return t.tsStringKeyword();
-      }
-      case AstTypeEnum.booleanLiteral: {
-        return t.tsBooleanKeyword();
-      }
-      case AstTypeEnum.numericLiteral: {
-        return t.tsNumberKeyword();
-      }
-      case AstTypeEnum.nullLiteral: {
-        return t.tsNullKeyword();
-      }
-      case AstTypeEnum.identifier: {
-        if (value.name === "undefined") {
-          return t.tsUndefinedKeyword();
-        }
-        return t.tsUnknownKeyword();
-      }
-      case AstTypeEnum.callExpression:
-      case AstTypeEnum.newExpression: {
-        const calleeName = t.isIdentifier(value.callee) && value.callee.name;
-        if (calleeName) {
-          if (calleeName === "Promise") {
-            // TODO: 未完成
-            return t.tsTypeReference(t.identifier(`${calleeName}<unknown>`));
-          }
-          return t.tsTypeReference(t.identifier(calleeName));
-        }
-        return t.tsUnknownKeyword();
-      }
-      case AstTypeEnum.objectExpression: {
-        const properties = value.properties.map((property: any) => {
-          const propertySignatureNode = t.tsPropertySignature(
-            t.identifier(property.key.name ?? property.key.value),
-            t.tsTypeAnnotation(this.getTypeAnnotation(property.value))
-          );
-          const leadingComment = property.leadingComments;
-          if (leadingComment) {
-            propertySignatureNode.leadingComments = [...leadingComment];
-          }
-          propertySignatureNode.optional = true;
-          return propertySignatureNode;
-        });
-        return t.tsTypeLiteral(properties);
-      }
-      case AstTypeEnum.arrayExpression: {
-        const union = new Map();
-        for (const element of value.elements as Array<unknown>) {
-          const elementType = this.getTypeAnnotation(element);
-          union.set(elementType.type, elementType);
-        }
-        const unionType = t.tsUnionType(
-          Array.from(union.values()) as t.TSType[]
-        );
-        return t.tsArrayType(unionType);
-      }
-    }
-    // 未知类型
-    return t.tsUnknownKeyword();
   }
 
   // *********************
@@ -427,8 +183,15 @@ ${interfaceText.trim()}${content}
   // *********************
 
   traverseCode(ast: ParseResult<t.File>) {
-    traverse(ast, this.ObjectVisitor);
-    console.log("ast: ", ast);
+    const declaration = (ast.program.body[0] as t.VariableDeclaration)
+      .declarations[0];
+    const type = declaration!.init!.type;
+    if (type === AstTypeEnum.objectExpression) {
+      traverse(ast, this.ObjectVisitor);
+    } else if (type === AstTypeEnum.arrayExpression) {
+      traverse(ast, this.ArrayVisitor);
+    }
+
     traverse(ast, this.VariableVisitor);
   }
 
@@ -470,8 +233,9 @@ ${interfaceText.trim()}${content}
             typeAnnotation = t.tsTypeReference(
               t.identifier(`${calleeName}<unknown>`)
             );
+          }else{
+            typeAnnotation = t.tsTypeReference(t.identifier(calleeName));
           }
-          typeAnnotation = t.tsTypeReference(t.identifier(calleeName));
         } else if (t.isCallExpression(value)) {
           const calleeName = generate((value as t.CallExpression).callee).code;
           typeAnnotation = t.tsTypeReference(t.identifier(calleeName));
@@ -482,35 +246,63 @@ ${interfaceText.trim()}${content}
           if (value.elements.length) {
             const id = uuidv4().slice(0, 4);
             state.levelRecord = [];
-            path.get("value").traverse(_that.ArrayVisitor, state);
-            // 生成一个新的变量
-            const variable = t.variableDeclaration("const", [
-              t.variableDeclarator(
-                t.identifier(`I${id}`),
-                path.node.value as t.ArrayExpression
-              ),
-            ]);
-            const programNode = path.findParent((path) => path.isProgram())!;
-            (programNode.node as t.Program).body.push(variable);
-            typeAnnotation = t.tsTypeReference(t.identifier(`Array<I${id}>`));
+            state.parentArrayRerencefeName = `I${id}`;
+            // 判断子元素是否为ObjectExpression
+            if (
+              value.elements.length === 1 &&
+              t.isObjectExpression(value.elements[0]) &&
+              _that.isALLKeySame(
+                path.get("value") as NodePath<t.ArrayExpression>
+              )
+            ) {
+              const variable = path.findParent((path) =>
+                path.isVariableDeclarator()
+              )!;
+              // name为undefined表示 当前Node是第二层对象因此需要使用变量名为interface变量
+              const variableName = `I${
+                ((variable.node as t.VariableDeclarator).id as t.Identifier)
+                  .name
+              }`;
+              const name = state.parentRerencefeName ?? variableName;
+              typeAnnotation = t.tsTypeReference(
+                t.identifier(`Array<${name}>`)
+              );
+            } else {
+              path.get("value").traverse(_that.ArrayVisitor, state);
+              // 生成一个新的变量
+              const variable = t.variableDeclaration("const", [
+                t.variableDeclarator(
+                  t.identifier(`I${id}`),
+                  path.node.value as t.ArrayExpression
+                ),
+              ]);
+              const programNode = path.findParent((path) => path.isProgram())!;
+              (programNode.node as t.Program).body.push(variable);
+              typeAnnotation = t.tsTypeReference(t.identifier(`Array<I${id}>`));
+            }
           } else {
             typeAnnotation = t.tsTypeReference(t.identifier(`Array<unknown>`));
           }
           path.skip();
         } else if (t.isObjectExpression(value)) {
-    
-
           if (_that.isALLKeySame(path)) {
-            console.log('path: ', path);
-            console.log("parentObject: ", path.node);
-            console.log("parentObject: ", path.parent);
+            const variable = path.findParent((path) =>
+              path.isVariableDeclarator()
+            )!;
+            // name为undefined表示 当前Node是第二层对象因此需要使用变量名为interface变量
+            const variableName = `I${
+              ((variable.node as t.VariableDeclarator).id as t.Identifier).name
+            }`;
+            const name = state.parentRerencefeName ?? variableName;
+            typeAnnotation = t.tsTypeReference(t.identifier(name));
           } else {
             const id = uuidv4().slice(0, 4);
+            state.parentRerencefeName = `I${id}`;
             path.get("value").traverse(_that.ObjectVisitor, state);
             // 生成一个新的变量
             const variable = t.variableDeclaration("const", [
               t.variableDeclarator(
-                t.identifier(`I${id}`),
+                t.identifier(id),
                 path.node.value as t.ObjectExpression
               ),
             ]);
@@ -534,30 +326,56 @@ ${interfaceText.trim()}${content}
   get ArrayVisitor(): any {
     const _that = this;
     return {
-      ObjectExpression(path: NodePath<t.ObjectExpression>, state: any) {
-        console.log("path.parent: 2", path.parent);
-
-        path.traverse(_that.ObjectVisitor, state);
-        path.replaceWith(
-          t.tsTypeLiteral(path.node.properties as unknown as t.TSTypeElement[])
-        );
-        path.skip();
-      },
-      ArrayExpression(path: NodePath<t.ArrayExpression>, state: any) {
-        state.levelRecord = [];
-        if (path.node.elements.length) {
-          path.traverse(_that.ArrayVisitor, state);
+      ObjectExpression(path: NodePath<t.ObjectExpression>, state: any = {}) {
+        if (_that.isALLKeySame(path)) {
+          const variable = path.findParent((path) =>
+            path.isVariableDeclarator()
+          )!;
+          // name为undefined表示 当前Node是第二层对象因此需要使用变量名为interface变量
+          const variableName = `I${
+            ((variable.node as t.VariableDeclarator).id as t.Identifier).name
+          }`;
+          const name = state.parentRerencefeName ?? variableName;
+          path.replaceWith(t.tsTypeReference(t.identifier(name)));
+        } else {
+          state.parentRerencefeName = state.parentArrayRerencefeName;
+          path.traverse(_that.ObjectVisitor, state);
           path.replaceWith(
-            t.tsArrayType(
-              t.tsUnionType(path.node.elements as unknown as t.TSType[])
+            t.tsTypeLiteral(
+              path.node.properties as unknown as t.TSTypeElement[]
             )
           );
-        } else {
-          path.replaceWith(t.tsArrayType(t.tsUnknownKeyword()));
         }
         path.skip();
       },
-      "StringLiteral|TemplateLiteral"(path: NodePath<t.Literal>, state: any) {
+      ArrayExpression(path: NodePath<t.ArrayExpression>, state: any = {}) {
+        state.levelRecord = [];
+        // 判断最外层是否为数组
+        if (path.parent.type !== "VariableDeclarator") {
+          if (path.node.elements.length) {
+            path.traverse(_that.ArrayVisitor, state);
+            path.replaceWith(
+              t.tsArrayType(
+                t.tsUnionType(path.node.elements as unknown as t.TSType[])
+              )
+            );
+          } else {
+            path.replaceWith(t.tsArrayType(t.tsUnknownKeyword()));
+          }
+        } else {
+          if (path.node.elements.length) {
+            path.traverse(_that.ArrayVisitor, state);
+            // TODO:
+          } else {
+            path.replaceWith(t.tsArrayType(t.tsUnknownKeyword()));
+          }
+        }
+        path.skip();
+      },
+      "StringLiteral|TemplateLiteral"(
+        path: NodePath<t.Literal>,
+        state: any = {}
+      ) {
         if (state.levelRecord.includes("string")) {
           path.remove();
         } else {
@@ -567,7 +385,7 @@ ${interfaceText.trim()}${content}
       },
       "NumericLiteral|BigIntLiteral|DecimalLiteral"(
         path: NodePath<t.Literal>,
-        state: any
+        state: any = {}
       ) {
         if (state.levelRecord.includes("number")) {
           path.remove();
@@ -576,7 +394,7 @@ ${interfaceText.trim()}${content}
           state.levelRecord.push("number");
         }
       },
-      BooleanLiteral(path: NodePath<t.BooleanLiteral>, state: any) {
+      BooleanLiteral(path: NodePath<t.BooleanLiteral>, state: any = {}) {
         if (state.levelRecord.includes("boolean")) {
           path.remove();
         } else {
@@ -584,7 +402,7 @@ ${interfaceText.trim()}${content}
           state.levelRecord.push("boolean");
         }
       },
-      NullLiteral(path: NodePath<t.NullLiteral>, state: any) {
+      NullLiteral(path: NodePath<t.NullLiteral>, state: any = {}) {
         if (state.levelRecord.includes("null")) {
           path.remove();
         } else {
@@ -592,18 +410,20 @@ ${interfaceText.trim()}${content}
           state.levelRecord.push("null");
         }
       },
-      Identifier(path: NodePath<t.Identifier>, state: any) {
-        if (
-          path.node.name === "undefined" &&
-          !state.levelRecord.includes("undefined")
-        ) {
-          path.replaceWith(t.tsUndefinedKeyword());
-          state.levelRecord.push("undefined");
-        } else if (!state.levelRecord.includes("unknown")) {
-          path.replaceWith(t.tsUnknownKeyword());
-          state.levelRecord.push("unknown");
+      Identifier(path: NodePath<t.Identifier>, state: any = {}) {
+        if (path.parent.type !== "VariableDeclarator") {
+          if (
+            path.node.name === "undefined" &&
+            !state.levelRecord.includes("undefined")
+          ) {
+            path.replaceWith(t.tsUndefinedKeyword());
+            state.levelRecord.push("undefined");
+          } else if (!state.levelRecord.includes("unknown")) {
+            path.replaceWith(t.tsUnknownKeyword());
+            state.levelRecord.push("unknown");
+          }
+          path.remove();
         }
-        path.remove();
       },
     };
   }
@@ -648,13 +468,25 @@ ${interfaceText.trim()}${content}
   // *********************
   // Utils Funtion
   // *********************
+
   /** 父子key是否一致 */
-  isALLKeySame(path: NodePath<t.ObjectProperty>): boolean {
+  isALLKeySame(
+    path: NodePath<t.ObjectProperty | t.ObjectExpression | t.ArrayExpression>
+  ): boolean {
     // 找到最近一个父节点为"ObjectExpression"的Node
     const parentObject = path.findParent((path) => path.isObjectExpression());
     const parentProps =
       (parentObject?.node as t.ObjectExpression).properties ?? [];
-    const childProps = (path.node.value as t.ObjectExpression).properties ?? [];
+
+    let chlidNode = path.node as t.ObjectExpression;
+    if (path.node.type === "ObjectProperty") {
+      chlidNode = path.node.value as t.ObjectExpression;
+    } else if (path.node.type === "ArrayExpression") {
+      chlidNode = path.node.elements[0] as t.ObjectExpression;
+    }
+
+    const childProps = chlidNode.properties ?? [];
+
     // 获取到所有的key
     const parentKeys = parentProps.map(
       (props) => ((props as t.ObjectProperty).key as t.Identifier).name
