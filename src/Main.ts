@@ -6,6 +6,8 @@ import { ParseResult, parse } from "@babel/parser";
 import { v4 as uuidv4 } from "uuid";
 import { BaseClass } from "./BaseClass";
 import { IMain } from "./interface/Main.interface";
+import { Logger } from "./Logger";
+import { ErrorEnum } from "./interface/Logger.interface";
 
 export enum AstTypeEnum {
   identifier = "Identifier",
@@ -91,8 +93,12 @@ ${interfaceText.trim()}${content}
           editorContext.replace(range, formatText)
         );
       });
-    } catch (error) {
-      console.log("error: ", error);
+    } catch (error:any) {
+      Logger.error({
+        type: ErrorEnum.UNKNOWN_MISTAKE,
+        data: error.message,
+        items: ["OpenIssue"],
+      });
     }
   }
 
@@ -132,12 +138,17 @@ ${interfaceText.trim()}${content}
   // *********************
 
   apiToTs(code: string) {
-    // try {
-    const tsCode = this.parseCode(code);
-    return tsCode;
-    // } catch (error) {
-    //   return "异常";
-    // }
+    try {
+      const tsCode = this.parseCode(code);
+      return tsCode;
+    } catch (error: any) {
+      Logger.error({
+        type: ErrorEnum.UNKNOWN_MISTAKE,
+        data: error.message,
+        items: ["OpenIssue"],
+      });
+      return error.message;
+    }
   }
 
   // *********************
@@ -145,16 +156,24 @@ ${interfaceText.trim()}${content}
   // *********************
 
   jsToTs() {
-    const selectData = this.getSelectedInfo();
-    const editor = window.activeTextEditor;
-    if (!editor) {
-      return;
+    try {
+      const selectData = this.getSelectedInfo();
+      const editor = window.activeTextEditor;
+      if (!editor) {
+        return;
+      }
+      selectData.forEach((item) => {
+        const { text, range } = item;
+        const code = this.parseCode(text);
+        editor.edit((editorContext) => editorContext.replace(range, code));
+      });
+    } catch (error: any) {
+      Logger.error({
+        type: ErrorEnum.UNKNOWN_MISTAKE,
+        data: error.message,
+        items: ["OpenIssue"],
+      });
     }
-    selectData.forEach((item) => {
-      const { text, range } = item;
-      const code = this.parseCode(text);
-      editor.edit((editorContext) => editorContext.replace(range, code));
-    });
   }
 
   // *********************
@@ -175,7 +194,6 @@ ${interfaceText.trim()}${content}
         .trimRight()
         .replace(/;$/, "");
     }
-    console.log("updateText: ", updateText);
 
     const ast: ParseResult<t.File> = parse(updateText, {
       plugins: ["typescript"],
@@ -189,6 +207,7 @@ ${interfaceText.trim()}${content}
   // Traverse
   // *********************
 
+  // TODO: 暂未优化
   traverseCode(ast: ParseResult<t.File>) {
     const declaration = (ast.program.body[0] as t.VariableDeclaration)
       .declarations[0];
@@ -252,38 +271,59 @@ ${interfaceText.trim()}${content}
             const id = uuidv4().slice(0, 4);
             state.levelRecord = [];
             state.parentArrayRerencefeName = `I${id}`;
-            // 判断子元素是否为ObjectExpression
-            if (
-              value.elements.length === 1 &&
-              t.isObjectExpression(value.elements[0]) &&
-              _that.isALLKeySame(
-                path.get("value") as NodePath<t.ArrayExpression>
-              )
-            ) {
-              const variable = path.findParent((path) =>
-                path.isVariableDeclarator()
-              )!;
-              // name为undefined表示 当前Node是第二层对象因此需要使用变量名为interface变量
-              const variableName = `I${
-                ((variable.node as t.VariableDeclarator).id as t.Identifier)
-                  .name
-              }`;
-              const name = state.parentRerencefeName ?? variableName;
-              typeAnnotation = t.tsTypeReference(
-                t.identifier(`Array<${name}>`)
-              );
+
+            // 元素类型只存在基础类型，不生成新的interface定义
+            const complexTypes = value.elements.some(
+              (element) => !(t.isLiteral(element) || t.isIdentifier(element))
+            );
+
+            if (complexTypes) {
+              // 判断子元素是否为ObjectExpression
+              if (
+                value.elements.length === 1 &&
+                t.isObjectExpression(value.elements[0]) &&
+                _that.isALLKeySame(
+                  path.get("value") as NodePath<t.ArrayExpression>
+                )
+              ) {
+                const variable = path.findParent((path) =>
+                  path.isVariableDeclarator()
+                )!;
+                // name为undefined表示 当前Node是第二层对象因此需要使用变量名为interface变量
+                const variableName = `I${
+                  ((variable.node as t.VariableDeclarator).id as t.Identifier)
+                    .name
+                }`;
+                const name = state.parentRerencefeName ?? variableName;
+                typeAnnotation = t.tsTypeReference(
+                  t.identifier(`Array<${name}>`)
+                );
+              } else {
+                path.get("value").traverse(_that.ArrayVisitor, state);
+                // 生成一个新的变量
+                const variable = t.variableDeclaration("const", [
+                  t.variableDeclarator(
+                    t.identifier(`I${id}`),
+                    path.node.value as t.ArrayExpression
+                  ),
+                ]);
+                const programNode = path.findParent((path) =>
+                  path.isProgram()
+                )!;
+                (programNode.node as t.Program).body.push(variable);
+                typeAnnotation = t.tsTypeReference(
+                  t.identifier(`Array<I${id}>`)
+                );
+              }
             } else {
+              // 基础类型
               path.get("value").traverse(_that.ArrayVisitor, state);
-              // 生成一个新的变量
-              const variable = t.variableDeclaration("const", [
-                t.variableDeclarator(
-                  t.identifier(`I${id}`),
-                  path.node.value as t.ArrayExpression
-                ),
-              ]);
-              const programNode = path.findParent((path) => path.isProgram())!;
-              (programNode.node as t.Program).body.push(variable);
-              typeAnnotation = t.tsTypeReference(t.identifier(`Array<I${id}>`));
+              typeAnnotation = t.tsArrayType(
+                t.tsUnionType(
+                  (path.node.value as t.ArrayExpression)
+                    .elements as unknown as t.TSType[]
+                )
+              );
             }
           } else {
             typeAnnotation = t.tsTypeReference(t.identifier(`Array<unknown>`));

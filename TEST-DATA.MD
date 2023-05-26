@@ -12,6 +12,19 @@ const AKclown = {
   isBoolean: true,
   isUndefined: undefined,
   isNull: null,
+  isSymbol: Symbol(),
+  isDate: new Date(),
+  isRegExp: new RegExp("ab+c"),
+  isLiteralRegExp: /asdas/,
+  isError: new Error(),
+  isPromise: new Promise(() => {}),
+  isCallback: (a: number, b: unknown, c = 1, ...rest) => {
+    console.log(a, b, rest);
+  },
+  /**
+   * 你是谁啊
+   */
+  // I am AKclown
   isArray: [
     { isString: "JS Object To Typescript" },
     "AKclown",
@@ -38,17 +51,118 @@ const AKclown = {
       null,
     ],
   },
-  isSymbol: Symbol(),
-  isDate: new Date(),
-  isRegExp: new RegExp("ab+c"),
-  isLiteralRegExp: /asdas/,
-  isError: new Error(),
-  isPromise: new Promise(() => {}),
-  isCallback: (a: number, b: unknown, c = 1, ...rest) => {
-    console.log(a, b, rest);
+};
+
+const TEST1 = {
+  /**
+   * 你是谁啊
+   */
+  // I am AKclown
+  isArray: [
+    { isString: "JS Object To Typescript", isNumber: 1 },
+    "AKclown",
+    "AK",
+    1,
+    1,
+    [1, 3, "string"],
+    [],
+    true,
+    undefined,
+    null,
+    null,
+  ],
+};
+
+const test1 = {
+  a: 1,
+  b: 1,
+  children: {
+    a: 2,
+    b: 2,
+    children: {},
   },
 };
 
+const test2 = {
+  a: 1,
+  b: 1,
+  children: {
+    c: 1,
+    d: 1,
+    children: {
+      c: 2,
+      d: 3,
+      children: {},
+    },
+  },
+};
+
+const test = {
+  a: 1,
+  b: 1,
+  children: [
+    {
+      a: 1,
+      b: 1,
+      children: [
+        {
+          a: 1,
+          b: 1,
+          children: [],
+        },
+      ],
+    },
+  ],
+};
+
+const test3 = {
+  a: 1,
+  b: 1,
+  children: [
+    {
+      c: 1,
+      d: 1,
+      Node: [
+        {
+          c: 2,
+          d: 2,
+          Node: [],
+        },
+      ],
+    },
+  ],
+};
+
+const a = [
+  {
+    a: 1,
+    b: 1,
+    children: [
+      {
+        c: 1,
+        d: 1,
+        Node: [
+          {
+            c: 2,
+            d: 2,
+            Node: [],
+          },
+        ],
+      },
+    ],
+  },
+  "2",
+  "3",
+  1,
+];
+
+const arr = ["1", 1, undefined, { aa: "12", a: { b: 1 } }];
+
+const AK = {
+  a: 1,
+  b: 1,
+  children: ["1", 1, undefined],
+};
 ```
 
 ```ts
