@@ -334,8 +334,9 @@ ${interfaceText.trim()}${content}
 
         const node = t.tsPropertySignature(
           key,
-          t.tsTypeAnnotation(typeAnnotation)
+          t.tsTypeAnnotation(typeAnnotation),
         );
+        node.optional = true;
         path.replaceWith(node);
       },
     };
