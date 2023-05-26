@@ -198,7 +198,6 @@ ${interfaceText.trim()}${content}
     } else if (type === AstTypeEnum.arrayExpression) {
       traverse(ast, this.ArrayVisitor);
     }
-
     traverse(ast, this.VariableVisitor);
   }
 
@@ -334,7 +333,7 @@ ${interfaceText.trim()}${content}
 
         const node = t.tsPropertySignature(
           key,
-          t.tsTypeAnnotation(typeAnnotation),
+          t.tsTypeAnnotation(typeAnnotation)
         );
         node.optional = true;
         path.replaceWith(node);
@@ -385,9 +384,6 @@ ${interfaceText.trim()}${content}
         } else {
           if (path.node.elements.length) {
             path.traverse(_that.ArrayVisitor, state);
-            // TODO:
-          } else {
-            path.replaceWith(t.tsArrayType(t.tsUnknownKeyword()));
           }
         }
         path.skip();
@@ -466,13 +462,21 @@ ${interfaceText.trim()}${content}
                 )
               );
             } else if (t.isArrayExpression(declaration.init)) {
+              // 判断是不是原始数组
+              const isOriginalArray = !name.startsWith("I");
+              let elements = (declaration.init as t.ArrayExpression).elements;
+              let typeAnnotation: t.TSType = elements.length
+                ? t.tSUnionType(elements as unknown as Array<t.TSType>)
+                : t.tsUnknownKeyword();
+
+              if (isOriginalArray) {
+                typeAnnotation = t.tsArrayType(typeAnnotation);
+              }
+
               return t.tsTypeAliasDeclaration(
                 t.identifier(`${name}`),
                 null,
-                t.tSUnionType(
-                  (declaration.init as t.ArrayExpression)
-                    .elements as unknown as Array<t.TSType>
-                )
+                typeAnnotation
               );
             }
           })
