@@ -132,8 +132,12 @@ ${interfaceText.trim()}${content}
   // *********************
 
   apiToTs(code: string) {
-    const tsCode = this.parseCode(code.toString());
+    // try {
+    const tsCode = this.parseCode(code);
     return tsCode;
+    // } catch (error) {
+    //   return "异常";
+    // }
   }
 
   // *********************
@@ -163,12 +167,15 @@ ${interfaceText.trim()}${content}
     // 判断是否存在变量
     if (!regualar.test(updateText)) {
       // 不能存在分号
-      const variableName = uuidv4().slice(0, 4);
-      updateText = `const A${variableName} = ${updateText}`
+      const firstChar = String.fromCharCode(
+        Math.floor(Math.random() * 26) + 97
+      );
+      const variableName = uuidv4().slice(0, 3);
+      updateText = `const ${firstChar}${variableName} = ${updateText}`
         .trimRight()
         .replace(/;$/, "");
     }
-    console.log('updateText: ', updateText);
+    console.log("updateText: ", updateText);
 
     const ast: ParseResult<t.File> = parse(updateText, {
       plugins: ["typescript"],
@@ -204,7 +211,6 @@ ${interfaceText.trim()}${content}
     const _that = this;
     return {
       ObjectProperty(path: NodePath<t.ObjectProperty>, state: any = {}) {
-        const key = (path.node.key as t.Identifier).name;
         const value = path.node.value;
         let typeAnnotation: t.TSType = t.tsUnknownKeyword();
         if (t.isStringLiteral(value) || t.isTemplateLiteral(value)) {
@@ -233,7 +239,7 @@ ${interfaceText.trim()}${content}
             typeAnnotation = t.tsTypeReference(
               t.identifier(`${calleeName}<unknown>`)
             );
-          }else{
+          } else {
             typeAnnotation = t.tsTypeReference(t.identifier(calleeName));
           }
         } else if (t.isCallExpression(value)) {
@@ -313,8 +319,21 @@ ${interfaceText.trim()}${content}
 
           path.skip();
         }
+
+        let key = path.node.key as t.Expression;
+
+        if (!(key as t.Identifier)?.name) {
+          // 判断类型声明是不是复杂名称，例如包含了-
+          const regualar = /[^(\w|_|$)]/g;
+          const value = (key as t.StringLiteral).value;
+          if (!regualar.test(value)) {
+            // 不是复杂类型转换为Identifier
+            key = t.identifier(value);
+          }
+        }
+
         const node = t.tsPropertySignature(
-          t.identifier(key),
+          key,
           t.tsTypeAnnotation(typeAnnotation)
         );
         path.replaceWith(node);
