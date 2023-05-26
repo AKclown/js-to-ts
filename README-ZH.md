@@ -1,19 +1,20 @@
 ## JS To TS
 
-**功能一:**&nbsp; 将api返回数据转为typescript类型声明
-PS: 自动将类型内容分配到剪贴板
-![apiToTs](./images/apiToTs.jpg)
-**功能二:** &nbsp;将JavaScript对象转为typescript类型声明
-![jsToTs](./images/jsToTs.jpg)
-**功能三:** &nbsp;将Swagger文档提供的类型自动转为typescript类型的一款插件
-![template](./images/template.jpg)
+**功能一:**&nbsp; 将api返回数据转为typescript类型声明  
+PS: 自动将类型内容分配到剪贴板  
+<img src="./images/apiToTs.jpg" width="90%" alt='apiToTs.jpg'>
+
+**功能二:** &nbsp;将JavaScript对象转为typescript类型声明  
+<img src="./images/jsToTs.jpg" width="90%" alt='jsToTs.jpg'>
+
+**功能三:** &nbsp;将Swagger文档提供的类型自动转为typescript类型的一款插件  
+<img src="./images/template.jpg" width="90%" alt='template.jpg'>
 
 ---  
 
 ## 用法
-![apiToTs](./images/apiToTs.gif)
-![jsToTs](./images/jsToTs.gif)
-![tutorials](./images/tutorials.gif)
+<img src="./images/apiToTs.gif" width="90%" alt='apiToTs.gif'>
+<img src="./images/jsToTs.gif" width="90%" alt='jsToTs.gif'>
 
 ## 快捷键配置
 - 默认按键配置(window & mac[ctrl -> control])

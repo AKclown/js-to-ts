@@ -9,4 +9,4 @@ images/**.jpg
 **/.eslintrc.json
 **/*.map
 **/*.ts
-vsc-extension-quickstart.md
+*.md

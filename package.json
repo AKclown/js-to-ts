@@ -1,8 +1,8 @@
 {
   "name": "swagger-to-typescript",
   "displayName": "JS To TS",
-  "description": "Converts JS to typescript type",
-  "version": "0.3.7",
+  "description": "Converts js/json/swagger/api to typescript type",
+  "version": "0.4.0",
   "publisher": "AKclown",
   "engines": {
     "vscode": "^1.63.0"
@@ -10,11 +10,11 @@
   "keywords": [
     "js to ts",
     "js2ts",
+    "json2ts",
+    "swagger2ts",
     "json to ts",
-    "javascript",
-    "Typescript",
-    "JavaScript TO Typescript",
-    "API To Typescript"
+    "swagger to ts",
+    "api to ts"
   ],
   "homepage": "https://github.com/AKclown/swagger-to-typescript/blob/main/README.md",
   "repository": {
@@ -122,6 +122,7 @@
   },
   "devDependencies": {
     "@types/babel__generator": "^7.6.4",
+    "@types/babel__traverse": "^7.18.5",
     "@types/fs-extra": "^9.0.7",
     "@types/glob": "^7.1.4",
     "@types/mocha": "^9.0.0",
@@ -139,6 +140,7 @@
   "dependencies": {
     "@babel/generator": "^7.20.14",
     "@babel/parser": "^7.21.4",
+    "@babel/traverse": "^7.21.5",
     "@babel/types": "^7.20.7",
     "fs-extra": "^11.1.1",
     "uuid": "^9.0.0"

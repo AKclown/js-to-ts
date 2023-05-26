@@ -29,12 +29,4 @@ export interface IMain {
   // *********************
 
   jsToTs(): void;
-
-  analyzeAndGenerate(
-    data: Array<any>,
-    type: AstTypeEnum,
-    variableName: string
-  ): void;
-
-  getTypeAnnotation(value: any): void;
 }

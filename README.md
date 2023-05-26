@@ -1,17 +1,20 @@
 ## JS To TS[中文版](./README-ZH.md)
 
-**Function 1:**&nbsp; Convert API return data to typescript type declaration.  
-PS: Automatically assign the type content to the clipboard
-![apiToTs](./images/apiToTs.jpg)
-**Function 2:**&nbsp; convert objects of JavaScript to typescript type declaration.
-![jsToTs](./images/jsToTs.jpg)
-**Function 3:**&nbsp; a plug-in that converts the type provided by the Swagger document to the typescript type automatically.
-![template](./images/template.jpg)
+**Function 1:**&nbsp; Convert API return data to typescript type declaration.   
+PS: Automatically assign the type content to the clipboard  
+<img src="./images/apiToTs.jpg" width="90%" alt='apiToTs.jpg'>
+
+**Function 2:**&nbsp; convert objects of JavaScript to typescript type declaration.  
+<img src="./images/jsToTs.jpg" width="90%" alt='jsToTs.jpg'>
+
+**Function 3:**&nbsp; a plug-in that converts the type provided by the Swagger document to the typescript type automatically.  
+<img src="./images/template.jpg" width="90%" alt='template.jpg'>  
+
+---  
 
 ## usage
-![apiToTs](./images/apiToTs.gif)
-![jsToTs](./images/jsToTs.gif)
-![tutorials](./images/tutorials.gif)
+<img src="./images/apiToTs.gif" width="90%" alt='apiToTs.gif'>
+<img src="./images/jsToTs.gif" width="90%" alt='jsToTs.gif'>
 
 
 ## Keyboard shortcuts configuration.
