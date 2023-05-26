@@ -1,3 +1,41 @@
+### 展示数据
+```ts
+const AKclown = {
+  // I am AKclown
+  string: "AKclown",
+  number: 20,
+  boolean: true,
+  undefined: undefined,
+  null: null,
+  symbol: Symbol(),
+  date: new Date(),
+  regExp: new RegExp("ab+c"),
+  literalRegExp: /asdas/,
+  error: new Error(),
+  promise: new Promise(() => {}),
+  callback: (a: number, b: unknown, c = 1, ...rest) => {
+    console.log(a, b, rest);
+  },
+  array: [{ string: "AKclown" }, "AKclown", 1],
+  object: {
+    string: "AKclown",
+    number: 20,
+    boolean: true,
+    undefined: undefined,
+  },
+};
+
+const element = {
+    id:1,
+    name:'Akclown',
+    children:[{
+        id:2,
+        name:'JS TO TS',
+        children:[]
+    }]
+}
+```
+
 ### 数据模拟
 
 [easyMock](https://mock.presstime.cn/project/64324d7248037aa2a4ae6397)
