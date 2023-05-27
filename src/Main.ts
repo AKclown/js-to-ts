@@ -3,7 +3,7 @@ import * as t from "@babel/types";
 import generate from "@babel/generator";
 import traverse, { NodePath, Visitor } from "@babel/traverse";
 import { ParseResult, parse } from "@babel/parser";
-import { v4 as uuidv4 } from "uuid";
+import { v4 as uuids4 } from "uuid";
 import { BaseClass } from "./BaseClass";
 import { IMain } from "./interface/Main.interface";
 import { Logger } from "./Logger";
@@ -181,15 +181,15 @@ ${interfaceText.trim()}${content}
   // *********************
 
   parseCode(text: string): string {
-    const regualar = /(var|let|const)\s*\w+\s*=.*/;
+    const regular = /(var|let|const)\s*\w+\s*=.*/;
     let updateText = text;
     // 判断是否存在变量
-    if (!regualar.test(updateText)) {
+    if (!regular.test(updateText)) {
       // 不能存在分号
       const firstChar = String.fromCharCode(
         Math.floor(Math.random() * 26) + 97
       );
-      const variableName = uuidv4().slice(0, 3);
+      const variableName = uuids4().slice(0, 3);
       updateText = `const ${firstChar}${variableName} = ${updateText}`
         .trimRight()
         .replace(/;$/, "");
@@ -264,13 +264,14 @@ ${interfaceText.trim()}${content}
           const calleeName = generate((value as t.CallExpression).callee).code;
           typeAnnotation = t.tsTypeReference(t.identifier(calleeName));
         } else if (t.isArrowFunctionExpression(value)) {
+          
           // TODO: 未完成
           // typeAnnotation = t.tsFunctionType(null, []);
         } else if (t.isArrayExpression(value)) {
           if (value.elements.length) {
-            const id = uuidv4().slice(0, 4);
+            const id = uuids4().slice(0, 4);
             state.levelRecord = [];
-            state.parentArrayRerencefeName = `I${id}`;
+            state.parentArrayReferenceName = `I${id}`;
 
             // 元素类型只存在基础类型，不生成新的interface定义
             const complexTypes = value.elements.some(
@@ -294,7 +295,7 @@ ${interfaceText.trim()}${content}
                   ((variable.node as t.VariableDeclarator).id as t.Identifier)
                     .name
                 }`;
-                const name = state.parentRerencefeName ?? variableName;
+                const name = state.parentReferenceName ?? variableName;
                 typeAnnotation = t.tsTypeReference(
                   t.identifier(`Array<${name}>`)
                 );
@@ -338,11 +339,11 @@ ${interfaceText.trim()}${content}
             const variableName = `I${
               ((variable.node as t.VariableDeclarator).id as t.Identifier).name
             }`;
-            const name = state.parentRerencefeName ?? variableName;
+            const name = state.parentReferenceName ?? variableName;
             typeAnnotation = t.tsTypeReference(t.identifier(name));
           } else {
-            const id = uuidv4().slice(0, 4);
-            state.parentRerencefeName = `I${id}`;
+            const id = uuids4().slice(0, 4);
+            state.parentReferenceName = `I${id}`;
             path.get("value").traverse(_that.ObjectVisitor, state);
             // 生成一个新的变量
             const variable = t.variableDeclaration("const", [
@@ -363,9 +364,9 @@ ${interfaceText.trim()}${content}
 
         if (!(key as t.Identifier)?.name) {
           // 判断类型声明是不是复杂名称，例如包含了-
-          const regualar = /[^(\w|_|$)]/g;
+          const regular = /[^(\w|_|$)]/g;
           const value = (key as t.StringLiteral).value;
-          if (!regualar.test(value)) {
+          if (!regular.test(value)) {
             // 不是复杂类型转换为Identifier
             key = t.identifier(value);
           }
@@ -394,10 +395,10 @@ ${interfaceText.trim()}${content}
           const variableName = `I${
             ((variable.node as t.VariableDeclarator).id as t.Identifier).name
           }`;
-          const name = state.parentRerencefeName ?? variableName;
+          const name = state.parentReferenceName ?? variableName;
           path.replaceWith(t.tsTypeReference(t.identifier(name)));
         } else {
-          state.parentRerencefeName = state.parentArrayRerencefeName;
+          state.parentReferenceName = state.parentArrayReferenceName;
           path.traverse(_that.ObjectVisitor, state);
           path.replaceWith(
             t.tsTypeLiteral(
@@ -530,7 +531,7 @@ ${interfaceText.trim()}${content}
   }
 
   // *********************
-  // Utils Funtion
+  // Utils Function
   // *********************
 
   /** 父子key是否一致 */
@@ -542,14 +543,14 @@ ${interfaceText.trim()}${content}
     const parentProps =
       (parentObject?.node as t.ObjectExpression).properties ?? [];
 
-    let chlidNode = path.node as t.ObjectExpression;
+    let childNode = path.node as t.ObjectExpression;
     if (path.node.type === "ObjectProperty") {
-      chlidNode = path.node.value as t.ObjectExpression;
+      childNode = path.node.value as t.ObjectExpression;
     } else if (path.node.type === "ArrayExpression") {
-      chlidNode = path.node.elements[0] as t.ObjectExpression;
+      childNode = path.node.elements[0] as t.ObjectExpression;
     }
 
-    const childProps = chlidNode.properties ?? [];
+    const childProps = childNode.properties ?? [];
 
     // 获取到所有的key
     const parentKeys = parentProps.map(
