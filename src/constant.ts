@@ -15,5 +15,6 @@ export enum Extra {
 
 export enum CustomConfig {
   OPEN_TEMPORARY_FILE = 'openTemporaryFile',
-  EXPORT_TYPE = 'exportType'
+  EXPORT_TYPE = 'exportType',
+  OPTIONAL ='optional'
 }

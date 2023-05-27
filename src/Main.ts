@@ -398,7 +398,9 @@ ${interfaceText.trim()}${content}
           key,
           t.tsTypeAnnotation(typeAnnotation)
         );
-        node.optional = true;
+
+        const optional = _that.getConfig(CustomConfig.OPTIONAL);
+        node.optional = optional;
         path.replaceWith(node);
       },
     };

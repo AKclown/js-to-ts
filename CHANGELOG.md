@@ -1,3 +1,6 @@
+# 0.4.3 (2023-05-28)
+1. 添加配置`optional`
+
 # 0.4.2 (2023-05-27)
 1. 添加配置`openTemporaryFile`和`exportType`
 2. 未选择内容时按`ctrl+shift+j`会转换剪切板内容
