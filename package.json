@@ -2,7 +2,7 @@
   "name": "swagger-to-typescript",
   "displayName": "JS To TS",
   "description": "Converts js/json/swagger/api to typescript type",
-  "version": "0.4.0",
+  "version": "0.4.2",
   "publisher": "AKclown",
   "engines": {
     "vscode": "^1.63.0"
@@ -47,6 +47,24 @@
         "title": "%js.to.ts.swagger.to.typescript%"
       }
     ],
+    "configuration": [
+			{
+				"type": "object",
+				"title": "JS To TS",
+				"properties": {
+					"openTemporaryFile": {
+						"type": "boolean",
+						"default": true,
+						"description": "%js.to.ts.configuration.openTemporaryFile.description%"
+					},
+          "exportType": {
+						"type": "boolean",
+						"default": true,
+						"description": "%js.to.ts.configuration.exportType.description%"
+					}
+				}
+			}
+		],
     "menus": {
       "editor/context": [
         {
@@ -57,8 +75,7 @@
       "swagger.to.typescript.context": [
         {
           "command": "swagger.to.typescript.object.convert",
-          "group": "1_modification",
-          "when": "editorHasSelection"
+          "group": "1_modification"
         },
         {
           "command": "swagger.to.typescript.convert",
@@ -77,8 +94,7 @@
       {
         "command": "swagger.to.typescript.object.convert",
         "key": "ctrl+shift+j",
-        "mac": "ctrl+shift+j",
-        "when": "editorHasSelection"
+        "mac": "ctrl+shift+j"
       },
       {
         "command": "swagger.to.typescript.convert",

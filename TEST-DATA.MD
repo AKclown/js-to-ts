@@ -10,7 +10,7 @@ const AKclown = {
   symbol: Symbol(),
   date: new Date(),
   regExp: new RegExp("ab+c"),
-  literalRegExp: /asdas/,
+  literalRegExp: /literalRegExp/,
   error: new Error(),
   promise: new Promise(() => {}),
   callback: (a: number, b: unknown, c = 1, ...rest) => {
@@ -27,7 +27,7 @@ const AKclown = {
 
 const element = {
     id:1,
-    name:'Akclown',
+    name:'AKclown',
     children:[{
         id:2,
         name:'JS TO TS',
@@ -53,7 +53,7 @@ const AKclown = {
   isSymbol: Symbol(),
   isDate: new Date(),
   isRegExp: new RegExp("ab+c"),
-  isLiteralRegExp: /asdas/,
+  isLiteralRegExp: /literalRegExp/,
   isError: new Error(),
   isPromise: new Promise(() => {}),
   isCallback: (a: number, b: unknown, c = 1, ...rest) => {

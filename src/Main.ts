@@ -8,6 +8,7 @@ import { BaseClass } from "./BaseClass";
 import { IMain } from "./interface/Main.interface";
 import { Logger } from "./Logger";
 import { ErrorEnum } from "./interface/Logger.interface";
+import { CustomConfig } from "./constant";
 
 export enum AstTypeEnum {
   identifier = "Identifier",
@@ -93,7 +94,7 @@ ${interfaceText.trim()}${content}
           editorContext.replace(range, formatText)
         );
       });
-    } catch (error:any) {
+    } catch (error: any) {
       Logger.error({
         type: ErrorEnum.UNKNOWN_MISTAKE,
         data: error.message,
@@ -155,18 +156,40 @@ ${interfaceText.trim()}${content}
   // JS To TS
   // *********************
 
-  jsToTs() {
+  async jsToTs() {
     try {
-      const selectData = this.getSelectedInfo();
-      const editor = window.activeTextEditor;
-      if (!editor) {
+      const activeEditor = window.activeTextEditor;
+      if (!activeEditor) {
         return;
       }
-      selectData.forEach((item) => {
-        const { text, range } = item;
-        const code = this.parseCode(text);
-        editor.edit((editorContext) => editorContext.replace(range, code));
-      });
+
+      const selectData = this.getSelectedInfo();
+      if (selectData.length) {
+        selectData.forEach(async (item) => {
+          const { text, range } = item;
+          let updateText = text;
+          if (range.start === range.end) {
+            // 不是选择区域时，从剪切板获取内容
+            updateText = await this.getCodeByClipboard();
+          }
+          const code = this.parseCode(updateText);
+
+          // 是否打开临时文件展示内容
+          const openTemporaryFile = this.getConfig(
+            CustomConfig.OPEN_TEMPORARY_FILE
+          );
+
+          if (openTemporaryFile) {
+            this.openTemporaryFile(code);
+          } else {
+            activeEditor.edit((editorContext) =>
+              editorContext.replace(range, code)
+            );
+          }
+        });
+      } else {
+        this.updateCodeByClipboard();
+      }
     } catch (error: any) {
       Logger.error({
         type: ErrorEnum.UNKNOWN_MISTAKE,
@@ -177,7 +200,7 @@ ${interfaceText.trim()}${content}
   }
 
   // *********************
-  // COMMENT
+  // Parse
   // *********************
 
   parseCode(text: string): string {
@@ -264,7 +287,6 @@ ${interfaceText.trim()}${content}
           const calleeName = generate((value as t.CallExpression).callee).code;
           typeAnnotation = t.tsTypeReference(t.identifier(calleeName));
         } else if (t.isArrowFunctionExpression(value)) {
-          
           // TODO: 未完成
           // typeAnnotation = t.tsFunctionType(null, []);
         } else if (t.isArrayExpression(value)) {
@@ -487,13 +509,17 @@ ${interfaceText.trim()}${content}
 
   /** 变量处理 */
   get VariableVisitor(): Visitor<t.Node> {
+    const _that = this;
     return {
       VariableDeclaration(path: NodePath<t.VariableDeclaration>) {
+        // 是否追加export
+        const exportType = _that.getConfig(CustomConfig.EXPORT_TYPE);
+
         let declarations = path.node.declarations
           .map((declaration) => {
             const name = (declaration.id as t.Identifier).name;
             if (t.isObjectExpression(declaration.init)) {
-              return t.tsInterfaceDeclaration(
+              const tsDeclaration = t.tsInterfaceDeclaration(
                 t.identifier(`I${name}`),
                 null,
                 null,
@@ -502,6 +528,10 @@ ${interfaceText.trim()}${content}
                     .properties as unknown as Array<t.TSTypeElement>
                 )
               );
+              if (exportType) {
+                return t.exportNamedDeclaration(tsDeclaration, []);
+              }
+              return tsDeclaration;
             } else if (t.isArrayExpression(declaration.init)) {
               // 判断是不是原始数组
               const isOriginalArray = !name.startsWith("I");
@@ -514,11 +544,16 @@ ${interfaceText.trim()}${content}
                 typeAnnotation = t.tsArrayType(typeAnnotation);
               }
 
-              return t.tsTypeAliasDeclaration(
+              const tsDeclaration = t.tsTypeAliasDeclaration(
                 t.identifier(`${name}`),
                 null,
                 typeAnnotation
               );
+
+              if (exportType) {
+                return t.exportNamedDeclaration(tsDeclaration, []);
+              }
+              return tsDeclaration;
             }
           })
           .filter(Boolean) as Array<
@@ -568,5 +603,13 @@ ${interfaceText.trim()}${content}
       return true;
     }
     return false;
+  }
+
+  /** 从剪切板更新内容 */
+  async updateCodeByClipboard() {
+    // 从粘贴板获取内容
+    const code = await this.getCodeByClipboard();
+    const updateCode = this.parseCode(code);
+    this.openTemporaryFile(updateCode);
   }
 }

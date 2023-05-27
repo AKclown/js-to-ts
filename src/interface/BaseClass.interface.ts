@@ -7,6 +7,10 @@ export interface IBaseClass {
   setCursorPosition(line: number, character: number):void;
 }
 
+// *********************
+// type 
+// *********************
+
 export interface ReturnSelectedInfo {
   range: Range;
   text: string;

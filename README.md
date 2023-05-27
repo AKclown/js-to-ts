@@ -1,10 +1,10 @@
-## JS To TS[中文版](./README-ZH.md)
-
+## JS To TS[中文版](./README-ZH.md) 
 **Function 1:**&nbsp; Convert API return data to typescript type declaration.   
 PS: Automatically assign the type content to the clipboard  
 <img src="./images/apiToTs.jpg" width="90%" alt='apiToTs.jpg'>
 
 **Function 2:**&nbsp; convert objects of JavaScript to typescript type declaration.  
+PS: Pressing `ctrl+shift+j` when nothing is selected will convert the clipboard content  
 <img src="./images/jsToTs.jpg" width="90%" alt='jsToTs.jpg'>
 
 **Function 3:**&nbsp; a plug-in that converts the type provided by the Swagger document to the typescript type automatically.  
@@ -12,10 +12,16 @@ PS: Automatically assign the type content to the clipboard
 
 ---  
 
-## usage
+## Settings plane
+<img src="./images/config.jpg" width="90%" alt='config.jpg'>
+
+--- 
+
+## Usage demo
 <img src="./images/apiToTs.gif" width="90%" alt='apiToTs.gif'>
 <img src="./images/jsToTs.gif" width="90%" alt='jsToTs.gif'>
 
+--- 
 
 ## Keyboard shortcuts configuration.
 
@@ -27,4 +33,5 @@ PS: Automatically assign the type content to the clipboard
 - You can also make customize settings in the shortcut key setting interface.
 
 ---
-PS: [File Teleport](https://github.com/AKclown/file-teleport)File will be updated synchronously together with plug-in.
+
+PS: If you think this plug-in is helpful to you, [don't be stingy with the'⭐' in your hand to start the project](https://github.com/AKclown/js-to-ts), your encouragement is biggest support to the author. If you finds bugs or interactive improvements,you can go to the project to [raise issue](https://github.com/AKclown/js-to-ts/issues).

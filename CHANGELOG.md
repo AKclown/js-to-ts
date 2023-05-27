@@ -1,3 +1,8 @@
+# 0.4.2 (2023-05-27)
+1. 添加配置`openTemporaryFile`和`exportType`
+2. 未选择内容时按`ctrl+shift+j`会转换剪切板内容
+3. 新增在右侧打开临时文件来展示类型声明
+
 # 0.4.0 (2023-05-26)
 1. 使用`@babel/traverse`重构AST遍历逻辑
 2. 将复杂类型拆分出一个新的interface定义

@@ -8,5 +8,7 @@
     "js.to.ts.headers": "标头",
     "js.to.ts.enter.your.headers": "输入你的标头",
     "js.to.ts.params": "参数",
-    "js.to.ts.enter.your.params": "输入你的参数"
+    "js.to.ts.enter.your.params": "输入你的参数",
+    "js.to.ts.configuration.openTemporaryFile.description":"是否打开临时文件",
+    "js.to.ts.configuration.exportType.description":"是否导出类型"
 }

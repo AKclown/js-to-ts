@@ -10,3 +10,4 @@ images/**.jpg
 **/*.map
 **/*.ts
 *.md
+src/utils.ts

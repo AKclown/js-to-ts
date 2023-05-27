@@ -8,5 +8,7 @@
     "js.to.ts.headers": "Headers",
     "js.to.ts.enter.your.headers": "Enter Your Headers",
     "js.to.ts.params": "Params",
-    "js.to.ts.enter.your.params": "Enter Your Params"
+    "js.to.ts.enter.your.params": "Enter Your Params",
+    "js.to.ts.configuration.openTemporaryFile.description":"Whether to open temporary files",
+    "js.to.ts.configuration.exportType.description":"Whether to export the type"
 }
