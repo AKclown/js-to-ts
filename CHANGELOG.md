@@ -1,5 +1,8 @@
+### 0.4.4 (2023-05-28)
+1. 添加自定义配置`comments`和`prefix`
+
 # 0.4.3 (2023-05-28)
-1. 添加配置`optional`
+1. 添加自定义配置`optional`
 
 # 0.4.2 (2023-05-27)
 1. 添加配置`openTemporaryFile`和`exportType`

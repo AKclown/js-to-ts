@@ -222,7 +222,9 @@ ${interfaceText.trim()}${content}
       plugins: ["typescript"],
     });
     this.traverseCode(ast);
-    const code = generate(ast).code;
+    const code = generate(ast, {jsescOption:{
+      quotes:'single'
+    }}).code;
     return code;
   }
 
@@ -250,6 +252,7 @@ ${interfaceText.trim()}${content}
   /** 对象Visitor */
   get ObjectVisitor(): Visitor<t.Node> {
     const _that = this;
+    const prefix = this.getConfig(CustomConfig.PREFIX) as string;
     return {
       ObjectProperty(path: NodePath<t.ObjectProperty>, state: any = {}) {
         const value = path.node.value;
@@ -293,7 +296,7 @@ ${interfaceText.trim()}${content}
           if (value.elements.length) {
             const id = uuids4().slice(0, 4);
             state.levelRecord = [];
-            state.parentArrayReferenceName = `I${id}`;
+            state.parentArrayReferenceName = `${prefix}${id}`;
 
             // 元素类型只存在基础类型，不生成新的interface定义
             const complexTypes = value.elements.some(
@@ -313,7 +316,7 @@ ${interfaceText.trim()}${content}
                   path.isVariableDeclarator()
                 )!;
                 // name为undefined表示 当前Node是第二层对象因此需要使用变量名为interface变量
-                const variableName = `I${((variable.node as t.VariableDeclarator).id as t.Identifier)
+                const variableName = `${prefix}${((variable.node as t.VariableDeclarator).id as t.Identifier)
                   .name
                   }`;
                 const name = state.parentReferenceName ?? variableName;
@@ -325,7 +328,7 @@ ${interfaceText.trim()}${content}
                 // 生成一个新的变量
                 const variable = t.variableDeclaration("const", [
                   t.variableDeclarator(
-                    t.identifier(`${id}`),
+                    t.identifier(id),
                     path.node.value as t.ArrayExpression
                   ),
                 ]);
@@ -334,7 +337,7 @@ ${interfaceText.trim()}${content}
                 )!;
                 (programNode.node as t.Program).body.push(variable);
                 typeAnnotation = t.tsTypeReference(
-                  t.identifier(`Array<I${id}>`)
+                  t.identifier(`Array<${prefix}${id}>`)
                 );
               }
             } else {
@@ -357,13 +360,13 @@ ${interfaceText.trim()}${content}
               path.isVariableDeclarator()
             )!;
             // name为undefined表示 当前Node是第二层对象因此需要使用变量名为interface变量
-            const variableName = `I${((variable.node as t.VariableDeclarator).id as t.Identifier).name
+            const variableName = `${prefix}${((variable.node as t.VariableDeclarator).id as t.Identifier).name
               }`;
             const name = state.parentReferenceName ?? variableName;
             typeAnnotation = t.tsTypeReference(t.identifier(name));
           } else {
             const id = uuids4().slice(0, 4);
-            state.parentReferenceName = `I${id}`;
+            state.parentReferenceName = `${prefix}${id}`;
             path.get("value").traverse(_that.ObjectVisitor, state);
             // 生成一个新的变量
             const variable = t.variableDeclaration("const", [
@@ -374,7 +377,7 @@ ${interfaceText.trim()}${content}
             ]);
             const programNode = path.findParent((path) => path.isProgram())!;
             (programNode.node as t.Program).body.push(variable);
-            typeAnnotation = t.tsTypeReference(t.identifier(`I${id}`));
+            typeAnnotation = t.tsTypeReference(t.identifier(`${prefix}${id}`));
           }
 
           path.skip();
@@ -412,6 +415,7 @@ ${interfaceText.trim()}${content}
   /** 数组处理 */
   get ArrayVisitor(): any {
     const _that = this;
+    const prefix = this.getConfig(CustomConfig.PREFIX) as string;
     return {
       ObjectExpression(path: NodePath<t.ObjectExpression>, state: any = {}) {
         if (_that.isALLKeySame(path)) {
@@ -419,7 +423,7 @@ ${interfaceText.trim()}${content}
             path.isVariableDeclarator()
           )!;
           // name为undefined表示 当前Node是第二层对象因此需要使用变量名为interface变量
-          const variableName = `I${((variable.node as t.VariableDeclarator).id as t.Identifier).name
+          const variableName = `${prefix}${((variable.node as t.VariableDeclarator).id as t.Identifier).name
             }`;
           const name = state.parentReferenceName ?? variableName;
           path.replaceWith(t.tsTypeReference(t.identifier(name)));
@@ -524,6 +528,7 @@ ${interfaceText.trim()}${content}
   /** 变量处理 */
   get VariableVisitor(): Visitor<t.Node> {
     const _that = this;
+    const prefix = this.getConfig(CustomConfig.PREFIX) as string;
     return {
       VariableDeclaration(path: NodePath<t.VariableDeclaration>) {
         // 是否追加export
@@ -534,7 +539,7 @@ ${interfaceText.trim()}${content}
             const name = (declaration.id as t.Identifier).name;
             if (t.isObjectExpression(declaration.init)) {
               const tsDeclaration = t.tsInterfaceDeclaration(
-                t.identifier(`I${name}`),
+                t.identifier(`${prefix}${name}`),
                 null,
                 null,
                 t.tsInterfaceBody(
@@ -548,7 +553,7 @@ ${interfaceText.trim()}${content}
               return tsDeclaration;
             } else if (t.isArrayExpression(declaration.init)) {
               // 判断是不是原始数组
-              const isOriginalArray = !name.startsWith("I");
+              const isOriginalArray = !name.startsWith(`${prefix}`);
               let elements = (declaration.init as t.ArrayExpression).elements;
               let typeAnnotation: t.TSType = elements.length
                 ? t.tSUnionType(elements as unknown as Array<t.TSType>)
@@ -559,7 +564,7 @@ ${interfaceText.trim()}${content}
               }
 
               const tsDeclaration = t.tsTypeAliasDeclaration(
-                t.identifier(`I${name}`),
+                t.identifier(`${prefix}${name}`),
                 null,
                 typeAnnotation
               );
