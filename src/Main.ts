@@ -8,7 +8,7 @@ import { BaseClass } from "./BaseClass";
 import { IMain } from "./interface/Main.interface";
 import { Logger } from "./Logger";
 import { ErrorEnum } from "./interface/Logger.interface";
-import { CustomConfig } from "./constant";
+import { CustomConfig, Icomments } from "./constant";
 
 export enum AstTypeEnum {
   identifier = "Identifier",
@@ -177,7 +177,7 @@ ${interfaceText.trim()}${content}
           // 是否打开临时文件展示内容
           const openTemporaryFile = this.getConfig(
             CustomConfig.OPEN_TEMPORARY_FILE
-          );
+          ) as boolean;
 
           if (openTemporaryFile) {
             this.openTemporaryFile(code);
@@ -230,7 +230,7 @@ ${interfaceText.trim()}${content}
   // Traverse
   // *********************
 
-  // TODO: 暂未优化
+  // TODO: 暂未优化 (后续单独成拆成一个npm包)
   traverseCode(ast: ParseResult<t.File>) {
     const declaration = (ast.program.body[0] as t.VariableDeclaration)
       .declarations[0];
@@ -313,10 +313,9 @@ ${interfaceText.trim()}${content}
                   path.isVariableDeclarator()
                 )!;
                 // name为undefined表示 当前Node是第二层对象因此需要使用变量名为interface变量
-                const variableName = `I${
-                  ((variable.node as t.VariableDeclarator).id as t.Identifier)
-                    .name
-                }`;
+                const variableName = `I${((variable.node as t.VariableDeclarator).id as t.Identifier)
+                  .name
+                  }`;
                 const name = state.parentReferenceName ?? variableName;
                 typeAnnotation = t.tsTypeReference(
                   t.identifier(`Array<${name}>`)
@@ -326,7 +325,7 @@ ${interfaceText.trim()}${content}
                 // 生成一个新的变量
                 const variable = t.variableDeclaration("const", [
                   t.variableDeclarator(
-                    t.identifier(`I${id}`),
+                    t.identifier(`${id}`),
                     path.node.value as t.ArrayExpression
                   ),
                 ]);
@@ -358,9 +357,8 @@ ${interfaceText.trim()}${content}
               path.isVariableDeclarator()
             )!;
             // name为undefined表示 当前Node是第二层对象因此需要使用变量名为interface变量
-            const variableName = `I${
-              ((variable.node as t.VariableDeclarator).id as t.Identifier).name
-            }`;
+            const variableName = `I${((variable.node as t.VariableDeclarator).id as t.Identifier).name
+              }`;
             const name = state.parentReferenceName ?? variableName;
             typeAnnotation = t.tsTypeReference(t.identifier(name));
           } else {
@@ -399,9 +397,14 @@ ${interfaceText.trim()}${content}
           t.tsTypeAnnotation(typeAnnotation)
         );
 
-        const optional = _that.getConfig(CustomConfig.OPTIONAL);
+        // 属性是否为可选
+        const optional = _that.getConfig(CustomConfig.OPTIONAL) as boolean;
         node.optional = optional;
+
         path.replaceWith(node);
+        // 是否保留注释
+        _that.retainComments(path);
+
       },
     };
   }
@@ -416,9 +419,8 @@ ${interfaceText.trim()}${content}
             path.isVariableDeclarator()
           )!;
           // name为undefined表示 当前Node是第二层对象因此需要使用变量名为interface变量
-          const variableName = `I${
-            ((variable.node as t.VariableDeclarator).id as t.Identifier).name
-          }`;
+          const variableName = `I${((variable.node as t.VariableDeclarator).id as t.Identifier).name
+            }`;
           const name = state.parentReferenceName ?? variableName;
           path.replaceWith(t.tsTypeReference(t.identifier(name)));
         } else {
@@ -461,6 +463,8 @@ ${interfaceText.trim()}${content}
           path.remove();
         } else {
           path.replaceWith(t.tsStringKeyword());
+          // 是否保留注释
+          _that.retainComments(path);
           state.levelRecord.push("string");
         }
       },
@@ -472,6 +476,8 @@ ${interfaceText.trim()}${content}
           path.remove();
         } else {
           path.replaceWith(t.tsNumberKeyword());
+          // 是否保留注释
+          _that.retainComments(path);
           state.levelRecord.push("number");
         }
       },
@@ -480,6 +486,8 @@ ${interfaceText.trim()}${content}
           path.remove();
         } else {
           path.replaceWith(t.tsBooleanKeyword());
+          // 是否保留注释
+          _that.retainComments(path);
           state.levelRecord.push("boolean");
         }
       },
@@ -488,6 +496,8 @@ ${interfaceText.trim()}${content}
           path.remove();
         } else {
           path.replaceWith(t.tsNullKeyword());
+          // 是否保留注释
+          _that.retainComments(path);
           state.levelRecord.push("null");
         }
       },
@@ -503,6 +513,8 @@ ${interfaceText.trim()}${content}
             path.replaceWith(t.tsUnknownKeyword());
             state.levelRecord.push("unknown");
           }
+          // 是否保留注释
+          _that.retainComments(path);
           path.remove();
         }
       },
@@ -515,7 +527,7 @@ ${interfaceText.trim()}${content}
     return {
       VariableDeclaration(path: NodePath<t.VariableDeclaration>) {
         // 是否追加export
-        const exportType = _that.getConfig(CustomConfig.EXPORT_TYPE);
+        const exportType = _that.getConfig(CustomConfig.EXPORT_TYPE) as boolean;
 
         let declarations = path.node.declarations
           .map((declaration) => {
@@ -547,7 +559,7 @@ ${interfaceText.trim()}${content}
               }
 
               const tsDeclaration = t.tsTypeAliasDeclaration(
-                t.identifier(`${name}`),
+                t.identifier(`I${name}`),
                 null,
                 typeAnnotation
               );
@@ -559,8 +571,8 @@ ${interfaceText.trim()}${content}
             }
           })
           .filter(Boolean) as Array<
-          t.TSInterfaceDeclaration | t.TSTypeAliasDeclaration
-        >;
+            t.TSInterfaceDeclaration | t.TSTypeAliasDeclaration
+          >;
 
         path.replaceWithMultiple(declarations);
       },
@@ -613,5 +625,36 @@ ${interfaceText.trim()}${content}
     const code = await this.getCodeByClipboard();
     const updateCode = this.parseCode(code);
     this.openTemporaryFile(updateCode);
+  }
+
+  /** 是否保留注释 */
+  retainComments(path: NodePath<any>) {
+    // 是否保留注释
+    const comments = this.getConfig(CustomConfig.COMMENTS) as string;
+
+    switch (comments) {
+      case Icomments.NONE: {
+        path.node.leadingComments = null;
+        path.node.innerComments = null;
+        path.node.trailingComments = null;
+        break;
+      }
+      case Icomments.LEADING_COMMENTS: {
+        path.node.innerComments = null;
+        path.node.trailingComments = null;
+        break;
+      }
+      case Icomments.INNER_COMMENTS: {
+        path.node.leadingComments = null;
+        path.node.trailingComments = null;
+        break;
+      }
+      case Icomments.TRAILING_COMMENTS: {
+        path.node.leadingComments = null;
+        path.node.innerComments = null;
+        break;
+      }
+    }
+
   }
 }

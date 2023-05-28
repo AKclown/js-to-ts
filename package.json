@@ -48,28 +48,52 @@
       }
     ],
     "configuration": [
-			{
-				"type": "object",
-				"title": "JS To TS",
-				"properties": {
-					"openTemporaryFile": {
-						"type": "boolean",
-						"default": true,
-						"description": "%js.to.ts.configuration.openTemporaryFile.description%"
-					},
+      {
+        "type": "object",
+        "title": "JS To TS",
+        "properties": {
+          "openTemporaryFile": {
+            "type": "boolean",
+            "default": true,
+            "description": "%js.to.ts.configuration.openTemporaryFile.description%"
+          },
           "exportType": {
-						"type": "boolean",
-						"default": true,
-						"description": "%js.to.ts.configuration.exportType.description%"
-					},
+            "type": "boolean",
+            "default": true,
+            "description": "%js.to.ts.configuration.exportType.description%"
+          },
           "optional": {
-						"type": "boolean",
-						"default": true,
-						"description": "%js.to.ts.configuration.optional.description%"
-					}
-				}
-			}
-		],
+            "type": "boolean",
+            "default": true,
+            "description": "%js.to.ts.configuration.optional.description%"
+          },
+          "comments": {
+            "type": "string",
+            "enum": [
+              "all",
+              "none",
+              "leadingComments",
+              "innerComments",
+              "trailingComments"
+            ],
+            "default": "all",
+            "enumDescriptions": [
+              "%js.to.ts.configuration.all.comments.description%",
+              "%js.to.ts.configuration.none.comments.description%",
+              "%js.to.ts.configuration.leadingComments.description%",
+              "%js.to.ts.configuration.innerComments.description%",
+              "%js.to.ts.configuration.trailingComments.description%"
+            ],
+            "description": "%js.to.ts.configuration.comments.description%"
+          },
+          "prefix": {
+            "type": "string",
+            "default": "I",
+            "description": "%js.to.ts.configuration.prefix.description%"
+          }
+        }
+      }
+    ],
     "menus": {
       "editor/context": [
         {

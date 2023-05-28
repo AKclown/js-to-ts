@@ -11,5 +11,12 @@
     "js.to.ts.enter.your.params": "Enter Your Params",
     "js.to.ts.configuration.openTemporaryFile.description":"Whether to open temporary files",
     "js.to.ts.configuration.exportType.description":"Whether to export the type",
-    "js.to.ts.configuration.optional.description":"Is the type optional"
+    "js.to.ts.configuration.optional.description":"Is the type optional",
+    "js.to.ts.configuration.comments.description":"whether to keep comments",
+    "js.to.ts.configuration.all.comments.description":"Keep all comments",
+    "js.to.ts.configuration.none.comments.description":"Remove all comments",
+    "js.to.ts.configuration.leadingComments.description":"Keep only leadingComments",
+    "js.to.ts.configuration.innerComments.description":"Keep only innerComments",
+    "js.to.ts.configuration.trailingComments.description":"Keep only trailingComments",
+    "js.to.ts.configuration.prefix.description":"interface name prefix"
 }

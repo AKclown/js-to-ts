@@ -16,5 +16,15 @@ export enum Extra {
 export enum CustomConfig {
   OPEN_TEMPORARY_FILE = 'openTemporaryFile',
   EXPORT_TYPE = 'exportType',
-  OPTIONAL ='optional'
+  OPTIONAL = 'optional',
+  COMMENTS = 'comments',
+  PREFIX = 'prefix'
+}
+
+export enum Icomments {
+  ALL = "all",
+  NONE = "none",
+  LEADING_COMMENTS = "leadingComments",
+  INNER_COMMENTS = "innerComments",
+  TRAILING_COMMENTS = "trailingComments"
 }

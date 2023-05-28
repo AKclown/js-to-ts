@@ -11,5 +11,12 @@
     "js.to.ts.enter.your.params": "输入你的参数",
     "js.to.ts.configuration.openTemporaryFile.description":"是否打开临时文件",
     "js.to.ts.configuration.exportType.description":"是否导出类型",
-    "js.to.ts.configuration.optional.description":"类型是否可选"
+    "js.to.ts.configuration.optional.description":"类型是否可选",
+    "js.to.ts.configuration.comments.description":"是否保留注释",
+    "js.to.ts.configuration.all.comments.description":"保留所有注释",
+    "js.to.ts.configuration.none.comments.description":"移除所有注释",
+    "js.to.ts.configuration.leadingComments.description":"只保留leadingComments",
+    "js.to.ts.configuration.innerComments.description":"只保留innerComments",
+    "js.to.ts.configuration.trailingComments.description":"只保留trailingComments",
+    "js.to.ts.configuration.prefix.description":"接口名称前缀"
 }
