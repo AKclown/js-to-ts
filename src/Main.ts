@@ -222,9 +222,11 @@ ${interfaceText.trim()}${content}
       plugins: ["typescript"],
     });
     this.traverseCode(ast);
-    const code = generate(ast, {jsescOption:{
-      quotes:'single'
-    }}).code;
+    const code = generate(ast, {
+      jsescOption: {
+        quotes: 'single'
+      }
+    }).code;
     return code;
   }
 
@@ -296,7 +298,6 @@ ${interfaceText.trim()}${content}
           if (value.elements.length) {
             const id = uuids4().slice(0, 4);
             state.levelRecord = [];
-            state.parentArrayReferenceName = `${prefix}${id}`;
 
             // 元素类型只存在基础类型，不生成新的interface定义
             const complexTypes = value.elements.some(
@@ -324,6 +325,7 @@ ${interfaceText.trim()}${content}
                   t.identifier(`Array<${name}>`)
                 );
               } else {
+                state.parentArrayReferenceName = `${prefix}${id}`;
                 path.get("value").traverse(_that.ArrayVisitor, state);
                 // 生成一个新的变量
                 const variable = t.variableDeclaration("const", [
@@ -476,6 +478,20 @@ ${interfaceText.trim()}${content}
         path: NodePath<t.Literal>,
         state: any = {}
       ) {
+        if (state.levelRecord.includes("number")) {
+          path.remove();
+        } else {
+          path.replaceWith(t.tsNumberKeyword());
+          // 是否保留注释
+          _that.retainComments(path);
+          state.levelRecord.push("number");
+        }
+      },
+      UnaryExpression(
+        path: NodePath<t.UnaryExpression>,
+        state: any = {}
+      ) {
+        // TODO: UnaryExpression未穷举完所有情况
         if (state.levelRecord.includes("number")) {
           path.remove();
         } else {

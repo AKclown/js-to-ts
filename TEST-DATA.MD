@@ -1,4 +1,5 @@
 ### 展示数据
+
 ```ts
 const AKclown = {
   // I am AKclown
@@ -26,14 +27,16 @@ const AKclown = {
 };
 
 const element = {
-    id:1,
-    name:'AKclown',
-    children:[{
-        id:2,
-        name:'JS TO TS',
-        children:[]
-    }]
-}
+  id: 1,
+  name: "AKclown",
+  children: [
+    {
+      id: 2,
+      name: "JS TO TS",
+      children: [],
+    },
+  ],
+};
 ```
 
 ### 数据模拟
@@ -150,6 +153,17 @@ const test = {
         },
       ],
     },
+    {
+      a: 1,
+      b: 1,
+      children: [
+        {
+          a: 1,
+          b: 1,
+          children: [],
+        },
+      ],
+    },
   ],
 };
 
@@ -168,8 +182,50 @@ const test3 = {
         },
       ],
     },
+    {
+      c: 1,
+      d: 1,
+      Node: [
+        {
+          c: 2,
+          d: 2,
+          Node: [],
+        },
+      ],
+    },
   ],
 };
+
+{
+    "x": 5,
+    "y": 6,
+    "should_be_in_ts": {
+        "metadata": "goes here",
+        "or": "whatever"
+    },
+    "should_be_ts_map_not_an_interface": {
+        "key1": {
+            "a": 1,
+            "b": 2
+        },
+        "key2": {
+            "a": 3,
+            "b": 4
+        },
+        "key3": {
+            "a": 5,
+            "b": 6
+        },
+        "key4": {
+            "a": 7,
+            "b": 8
+        },
+        "key5": {
+            "a": 9,
+            "b": 10
+        }
+    }
+}
 
 const a = [
   {
