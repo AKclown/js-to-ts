@@ -343,7 +343,7 @@ ${interfaceText.trim()}${content}
 
                 // 生成一个新的变量(判断是否存在一样的数据)
                 const variableExpression = generate(path.node.value).code;
-                const reusableId = _that.reusableId(variableExpression);
+                const reusableId = _that.reusableId(id, variableExpression);
 
                 if (!reusableId) {
                   const variable = t.variableDeclaration("const", [
@@ -356,7 +356,6 @@ ${interfaceText.trim()}${content}
                     path.isProgram()
                   )!;
                   (programNode.node as t.Program).body.push(variable);
-                  _that.newVarible.set(id, variableExpression);
                 }
                 typeAnnotation = t.tsTypeReference(
                   t.identifier(`Array<${prefix}${reusableId ?? id}>`)
@@ -401,7 +400,7 @@ ${interfaceText.trim()}${content}
 
             // 生成一个新的变量(判断是否存在一样的数据)
             const variableExpression = generate(path.node.value).code;
-            const reusableId = _that.reusableId(variableExpression);
+            const reusableId = _that.reusableId(id, variableExpression);
 
             if (!reusableId) {
               // 生成一个新的变量
@@ -413,7 +412,6 @@ ${interfaceText.trim()}${content}
               ]);
               const programNode = path.findParent((path) => path.isProgram())!;
               (programNode.node as t.Program).body.push(variable);
-              _that.newVarible.set(id, variableExpression);
             }
 
             typeAnnotation = t.tsTypeReference(t.identifier(`${prefix}${reusableId ?? id}`));
@@ -457,16 +455,6 @@ ${interfaceText.trim()}${content}
     const prefix = this.getConfig(CustomConfig.PREFIX) as string;
     return {
       ObjectExpression(path: NodePath<t.ObjectExpression>, state: any = {}) {
-        if (_that.isALLKeySame(path)) {
-          const variable = path.findParent((path) =>
-            path.isVariableDeclarator()
-          )!;
-          // name为undefined表示 当前Node是第二层对象因此需要使用变量名为interface变量
-          const variableName = `${prefix}${((variable.node as t.VariableDeclarator).id as t.Identifier).name
-            }`;
-          const name = state.parentArrayReferenceName ?? variableName;
-          path.replaceWith(t.tsTypeReference(t.identifier(name)));
-        } else {
           const originParentReferenceName = state.parentReferenceName;
           state.parentReferenceName = state.parentArrayReferenceName;
           path.traverse(_that.ObjectVisitor, state);
@@ -476,7 +464,6 @@ ${interfaceText.trim()}${content}
               path.node.properties as unknown as t.TSTypeElement[]
             )
           );
-        }
         path.skip();
       },
       ArrayExpression(path: NodePath<t.ArrayExpression>, state: any = {}) {
@@ -723,7 +710,7 @@ ${interfaceText.trim()}${content}
   }
 
   /** 类型是否可复用 */
-  reusableId(code: string): string | undefined {
+  reusableId(originId: string, code: string): string | undefined {
     if (this.newVarible.size) {
       // 判断是否有可复用的类型
       for (let [id, expression] of this.newVarible.entries()) {
@@ -732,6 +719,7 @@ ${interfaceText.trim()}${content}
         }
       }
     }
+    this.newVarible.set(originId, code);
   }
 
   /** 去重 */
