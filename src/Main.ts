@@ -304,8 +304,6 @@ ${interfaceText.trim()}${content}
         } else if (t.isArrayExpression(value)) {
           if (value.elements.length) {
             const id = uuids4().slice(0, 4);
-            state.levelRecord = [];
-
             // 元素类型只存在基础类型，不生成新的interface定义
             const complexTypes = value.elements.some(
               (element) => !(t.isLiteral(element) || t.isIdentifier(element) || t.isUnaryExpression(element))
@@ -334,12 +332,14 @@ ${interfaceText.trim()}${content}
                 );
               } else {
                 // !!! 存在问题
+                const originParentArrayReferenceName = state.parentArrayReferenceName;
                 state.parentArrayReferenceName = `${prefix}${id}`;
                 path.get("value").traverse(_that.ArrayVisitor, state);
+                state.parentArrayReferenceName = originParentArrayReferenceName;
 
                 // 类型去重
                 let elements = (path.node.value as t.ArrayExpression).elements;
-                (path.node.value as t.ArrayExpression).elements = _that.typeIntegration(elements);
+                (path.node.value as t.ArrayExpression).elements = _that.typeIntegration(elements) as t.ArrayExpression['elements'];
 
                 // 生成一个新的变量(判断是否存在一样的数据)
                 const variableExpression = generate(path.node.value).code;
@@ -365,6 +365,11 @@ ${interfaceText.trim()}${content}
             } else {
               // 基础类型
               path.get("value").traverse(_that.ArrayVisitor, state);
+
+              // 类型去重
+              let elements = (path.node.value as t.ArrayExpression).elements;
+              (path.node.value as t.ArrayExpression).elements = _that.typeIntegration(elements) as t.ArrayExpression['elements'];
+
               typeAnnotation = t.tsArrayType(
                 t.tsUnionType(
                   (path.node.value as t.ArrayExpression)
@@ -389,8 +394,10 @@ ${interfaceText.trim()}${content}
           } else {
             const id = uuids4().slice(0, 4);
             // !!! 这里还是要考虑直接获父元素的
+            const originParentReferenceName = state.parentReferenceName;
             state.parentReferenceName = `${prefix}${id}`;
             path.get("value").traverse(_that.ObjectVisitor, state);
+            state.parentReferenceName = originParentReferenceName;
 
             // 生成一个新的变量(判断是否存在一样的数据)
             const variableExpression = generate(path.node.value).code;
@@ -457,11 +464,13 @@ ${interfaceText.trim()}${content}
           // name为undefined表示 当前Node是第二层对象因此需要使用变量名为interface变量
           const variableName = `${prefix}${((variable.node as t.VariableDeclarator).id as t.Identifier).name
             }`;
-          const name = state.parentReferenceName ?? variableName;
+          const name = state.parentArrayReferenceName ?? variableName;
           path.replaceWith(t.tsTypeReference(t.identifier(name)));
         } else {
+          const originParentReferenceName = state.parentReferenceName;
           state.parentReferenceName = state.parentArrayReferenceName;
           path.traverse(_that.ObjectVisitor, state);
+          state.parentReferenceName = originParentReferenceName;
           path.replaceWith(
             t.tsTypeLiteral(
               path.node.properties as unknown as t.TSTypeElement[]
@@ -471,14 +480,13 @@ ${interfaceText.trim()}${content}
         path.skip();
       },
       ArrayExpression(path: NodePath<t.ArrayExpression>, state: any = {}) {
-        state.levelRecord = [];
         // 判断最外层是否为数组
         if (path.parent.type !== "VariableDeclarator") {
           if (path.node.elements.length) {
             path.traverse(_that.ArrayVisitor, state);
             // 类型去重
             let elements = (path.node as t.ArrayExpression).elements;
-            (path.node as t.ArrayExpression).elements = _that.typeIntegration(elements);
+            (path.node as t.ArrayExpression).elements = _that.typeIntegration(elements) as t.ArrayExpression['elements'];
 
             path.replaceWith(
               t.tsArrayType(
@@ -497,79 +505,45 @@ ${interfaceText.trim()}${content}
       },
       "StringLiteral|TemplateLiteral"(
         path: NodePath<t.Literal>,
-        state: any = {}
       ) {
-        if (state.levelRecord.includes("string")) {
-          path.remove();
-        } else {
-          path.replaceWith(t.tsStringKeyword());
-          // 是否保留注释
-          _that.retainComments(path);
-          state.levelRecord.push("string");
-        }
+        path.replaceWith(t.tsStringKeyword());
+        // 是否保留注释
+        _that.retainComments(path);
       },
       "NumericLiteral|BigIntLiteral|DecimalLiteral"(
         path: NodePath<t.Literal>,
-        state: any = {}
       ) {
-        if (state.levelRecord.includes("number")) {
-          path.remove();
-        } else {
-          path.replaceWith(t.tsNumberKeyword());
-          // 是否保留注释
-          _that.retainComments(path);
-          state.levelRecord.push("number");
-        }
+        path.replaceWith(t.tsNumberKeyword());
+        // 是否保留注释
+        _that.retainComments(path);
       },
       UnaryExpression(
         path: NodePath<t.UnaryExpression>,
-        state: any = {}
       ) {
         // TODO: UnaryExpression未穷举完所有情况
-        if (state.levelRecord.includes("number")) {
-          path.remove();
-        } else {
-          path.replaceWith(t.tsNumberKeyword());
-          // 是否保留注释
-          _that.retainComments(path);
-          state.levelRecord.push("number");
-        }
+        path.replaceWith(t.tsNumberKeyword());
+        // 是否保留注释
+        _that.retainComments(path);
       },
-      BooleanLiteral(path: NodePath<t.BooleanLiteral>, state: any = {}) {
-        if (state.levelRecord.includes("boolean")) {
-          path.remove();
-        } else {
-          path.replaceWith(t.tsBooleanKeyword());
-          // 是否保留注释
-          _that.retainComments(path);
-          state.levelRecord.push("boolean");
-        }
+      BooleanLiteral(path: NodePath<t.BooleanLiteral>) {
+        path.replaceWith(t.tsBooleanKeyword());
+        // 是否保留注释
+        _that.retainComments(path);
       },
-      NullLiteral(path: NodePath<t.NullLiteral>, state: any = {}) {
-        if (state.levelRecord.includes("null")) {
-          path.remove();
-        } else {
-          path.replaceWith(t.tsNullKeyword());
-          // 是否保留注释
-          _that.retainComments(path);
-          state.levelRecord.push("null");
-        }
+      NullLiteral(path: NodePath<t.NullLiteral>) {
+        path.replaceWith(t.tsNullKeyword());
+        // 是否保留注释
+        _that.retainComments(path);
       },
-      Identifier(path: NodePath<t.Identifier>, state: any = {}) {
+      Identifier(path: NodePath<t.Identifier>) {
         if (path.parent.type !== "VariableDeclarator") {
-          if (
-            path.node.name === "undefined" &&
-            !state.levelRecord.includes("undefined")
-          ) {
+          if (path.node.name === "undefined") {
             path.replaceWith(t.tsUndefinedKeyword());
-            state.levelRecord.push("undefined");
-          } else if (!state.levelRecord.includes("unknown")) {
+          } else {
             path.replaceWith(t.tsUnknownKeyword());
-            state.levelRecord.push("unknown");
           }
           // 是否保留注释
           _that.retainComments(path);
-          path.remove();
         }
       },
     };
@@ -645,6 +619,7 @@ ${interfaceText.trim()}${content}
   ): boolean {
     // 找到最近一个父节点为"ObjectExpression"的Node
     const parentObject = path.findParent((path) => path.isObjectExpression());
+    console.log('parentObject: ', parentObject?.node);
     const parentProps =
       (parentObject?.node as t.ObjectExpression).properties ?? [];
 
@@ -698,13 +673,14 @@ ${interfaceText.trim()}${content}
   }
 
   /** 数组对象类型整合 */
-  typeIntegration(elements: Array<t.Expression | t.SpreadElement | null>) {
+  // TODO： 类型未定义
+  typeIntegration(elements: Array<any>): Array<any> {
     // 对象数据数据整合在一起成为联合类型
-    const typeMap: Map<string, Array<t.TSTypeAnnotation>> = new Map([]);
+    const typeMap: Map<string, Array<any>> = new Map([]);
     // 基础类型
     const basics: Array<any> = [];
     // 复杂类型
-    const complexs: Array<t.TSTypeLiteral> = [];
+    const complexs: Array<any> = [];
     elements.forEach(element => {
       if (t.isTSTypeLiteral(element)) {
         complexs.push(element);
@@ -713,7 +689,8 @@ ${interfaceText.trim()}${content}
       }
     });
 
-    if (complexs.length < 2) { return elements; }
+    if (complexs.length < 2) { return this.deduplication(elements); }
+
     for (let complex of complexs) {
       for (let member of complex!.members) {
         const key = generate((member as t.TSPropertySignature).key).code;
@@ -723,46 +700,26 @@ ${interfaceText.trim()}${content}
     }
 
     const updateNode = [];
-    for (let [key, value] of typeMap) {
+    if (typeMap.size) {
+      for (let [key, value] of typeMap) {
+        let uniqueValue = this.deduplication(value);
+        const node = t.tsPropertySignature(
+          t.identifier(key),
+          t.tsTypeAnnotation(t.tsUnionType(uniqueValue as any as t.TSType[]))
+        );
 
-      let uniqueValue = value;
-      if (value.length > 1) {
-        // 去重
-        // TODO: 数组去重
-        const unique: Set<string> = new Set([]);
-        uniqueValue = value.reduce((types, data: any) => {
-          if (data.type === "TSTypeReference") {
-            const name = data.typeName.name;
-            if (!unique.has(name)) {
-              unique.add(name);
-              types.push(data);
-            }
-          } else {
-            if (!unique.has(data.type)) {
-              unique.add(data.type);
-              types.push(data);
-            }
-          }
-          return types;
-        }, [] as t.TSTypeAnnotation[]);
+        // 属性是否为可选
+        const optional = this.getConfig(CustomConfig.OPTIONAL) as boolean;
+        // 如果配置的是false, 那么需要主动判断某个类型是否为可选类型
+        const isOptional = value.length !== complexs.length;
+        node.optional = optional || isOptional;
+
+        updateNode.push(node);
       }
-
-      const node = t.tsPropertySignature(
-        t.identifier(key),
-        t.tsTypeAnnotation(t.tsUnionType(uniqueValue as any as t.TSType[]))
-      );
-
-      // 属性是否为可选
-      const optional = this.getConfig(CustomConfig.OPTIONAL) as boolean;
-      // 如果配置的是false, 那么需要主动判断某个类型是否为可选类型
-      const isOptional = value.length !== complexs.length;
-      node.optional = optional || isOptional;
-
-      updateNode.push(node);
     }
 
     // 将对象类型，组合成一个新类型
-    return [...basics, t.tsTypeLiteral(updateNode)];
+    return [...this.deduplication(basics), t.tsTypeLiteral(updateNode)];
   }
 
   /** 类型是否可复用 */
@@ -775,6 +732,30 @@ ${interfaceText.trim()}${content}
         }
       }
     }
+  }
+
+  /** 去重 */
+  deduplication(value: Array<t.Expression | t.SpreadElement | null>) {
+    if (value.length > 1) {
+      const unique: Set<string> = new Set([]);
+      const uniqueValue = value.reduce((types, data: any) => {
+        if (data.type === "TSTypeReference") {
+          const name = data.typeName.name;
+          if (!unique.has(name)) {
+            unique.add(name);
+            types.push(data);
+          }
+        } else {
+          if (!unique.has(data.type)) {
+            unique.add(data.type);
+            types.push(data);
+          }
+        }
+        return types;
+      }, [] as t.TSTypeAnnotation[]);
+      return uniqueValue;
+    }
+    return value;
   }
 
   /** 是否保留注释 */
