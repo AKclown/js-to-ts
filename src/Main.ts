@@ -45,6 +45,12 @@ export class Main extends BaseClass implements IMain {
   private contentRegular = /(\w+).*\(([^,]+).*\)((?:\:)([^,|}|\r|\n]+))?/g;
   private blockRegular = /([^\{]*\{)([^\{\}]+)(\})/gm;
 
+  private newVarible: Map<string, string>;
+  constructor() {
+    super();
+    this.newVarible = new Map([]);
+  }
+
   // *********************
   // Add Block Command
   // *********************
@@ -204,6 +210,7 @@ ${interfaceText.trim()}${content}
   // *********************
 
   parseCode(text: string): string {
+    this.newVarible.clear();
     const regular = /(var|let|const)\s*\w+\s*=.*/;
     let updateText = text;
     // 判断是否存在变量
@@ -234,7 +241,7 @@ ${interfaceText.trim()}${content}
   // Traverse
   // *********************
 
-  // TODO: 暂未优化 (后续单独成拆成一个npm包)
+  // TODO: 暂未优化 (后续单独成拆成一个npm包 - 二进制包)
   traverseCode(ast: ParseResult<t.File>) {
     const declaration = (ast.program.body[0] as t.VariableDeclaration)
       .declarations[0];
@@ -301,7 +308,7 @@ ${interfaceText.trim()}${content}
 
             // 元素类型只存在基础类型，不生成新的interface定义
             const complexTypes = value.elements.some(
-              (element) => !(t.isLiteral(element) || t.isIdentifier(element))
+              (element) => !(t.isLiteral(element) || t.isIdentifier(element) || t.isUnaryExpression(element))
             );
 
             if (complexTypes) {
@@ -320,26 +327,39 @@ ${interfaceText.trim()}${content}
                 const variableName = `${prefix}${((variable.node as t.VariableDeclarator).id as t.Identifier)
                   .name
                   }`;
+                // TODO: 可优化
                 const name = state.parentReferenceName ?? variableName;
                 typeAnnotation = t.tsTypeReference(
                   t.identifier(`Array<${name}>`)
                 );
               } else {
+                // !!! 存在问题
                 state.parentArrayReferenceName = `${prefix}${id}`;
                 path.get("value").traverse(_that.ArrayVisitor, state);
-                // 生成一个新的变量
-                const variable = t.variableDeclaration("const", [
-                  t.variableDeclarator(
-                    t.identifier(id),
-                    path.node.value as t.ArrayExpression
-                  ),
-                ]);
-                const programNode = path.findParent((path) =>
-                  path.isProgram()
-                )!;
-                (programNode.node as t.Program).body.push(variable);
+
+                // 类型去重
+                let elements = (path.node.value as t.ArrayExpression).elements;
+                (path.node.value as t.ArrayExpression).elements = _that.typeIntegration(elements);
+
+                // 生成一个新的变量(判断是否存在一样的数据)
+                const variableExpression = generate(path.node.value).code;
+                const reusableId = _that.reusableId(variableExpression);
+
+                if (!reusableId) {
+                  const variable = t.variableDeclaration("const", [
+                    t.variableDeclarator(
+                      t.identifier(id),
+                      path.node.value as t.ArrayExpression
+                    ),
+                  ]);
+                  const programNode = path.findParent((path) =>
+                    path.isProgram()
+                  )!;
+                  (programNode.node as t.Program).body.push(variable);
+                  _that.newVarible.set(id, variableExpression);
+                }
                 typeAnnotation = t.tsTypeReference(
-                  t.identifier(`Array<${prefix}${id}>`)
+                  t.identifier(`Array<${prefix}${reusableId ?? id}>`)
                 );
               }
             } else {
@@ -368,18 +388,28 @@ ${interfaceText.trim()}${content}
             typeAnnotation = t.tsTypeReference(t.identifier(name));
           } else {
             const id = uuids4().slice(0, 4);
+            // !!! 这里还是要考虑直接获父元素的
             state.parentReferenceName = `${prefix}${id}`;
             path.get("value").traverse(_that.ObjectVisitor, state);
-            // 生成一个新的变量
-            const variable = t.variableDeclaration("const", [
-              t.variableDeclarator(
-                t.identifier(id),
-                path.node.value as t.ObjectExpression
-              ),
-            ]);
-            const programNode = path.findParent((path) => path.isProgram())!;
-            (programNode.node as t.Program).body.push(variable);
-            typeAnnotation = t.tsTypeReference(t.identifier(`${prefix}${id}`));
+
+            // 生成一个新的变量(判断是否存在一样的数据)
+            const variableExpression = generate(path.node.value).code;
+            const reusableId = _that.reusableId(variableExpression);
+
+            if (!reusableId) {
+              // 生成一个新的变量
+              const variable = t.variableDeclaration("const", [
+                t.variableDeclarator(
+                  t.identifier(id),
+                  path.node.value as t.ObjectExpression
+                ),
+              ]);
+              const programNode = path.findParent((path) => path.isProgram())!;
+              (programNode.node as t.Program).body.push(variable);
+              _that.newVarible.set(id, variableExpression);
+            }
+
+            typeAnnotation = t.tsTypeReference(t.identifier(`${prefix}${reusableId ?? id}`));
           }
 
           path.skip();
@@ -446,6 +476,10 @@ ${interfaceText.trim()}${content}
         if (path.parent.type !== "VariableDeclarator") {
           if (path.node.elements.length) {
             path.traverse(_that.ArrayVisitor, state);
+            // 类型去重
+            let elements = (path.node as t.ArrayExpression).elements;
+            (path.node as t.ArrayExpression).elements = _that.typeIntegration(elements);
+
             path.replaceWith(
               t.tsArrayType(
                 t.tsUnionType(path.node.elements as unknown as t.TSType[])
@@ -575,9 +609,10 @@ ${interfaceText.trim()}${content}
                 ? t.tSUnionType(elements as unknown as Array<t.TSType>)
                 : t.tsUnknownKeyword();
 
-              if (isOriginalArray) {
-                typeAnnotation = t.tsArrayType(typeAnnotation);
-              }
+              // 判断存在问题
+              // if (isOriginalArray) {
+              //   typeAnnotation = t.tsArrayType(typeAnnotation);
+              // }
 
               const tsDeclaration = t.tsTypeAliasDeclaration(
                 t.identifier(`${prefix}${name}`),
@@ -624,10 +659,24 @@ ${interfaceText.trim()}${content}
 
     // 获取到所有的key
     const parentKeys = parentProps.map(
-      (props) => ((props as t.ObjectProperty).key as t.Identifier).name
+      (props) => {
+        const key = (props as t.ObjectProperty).key;
+        if (t.isIdentifier(key)) {
+          return key.name;
+        } else if (t.isStringLiteral(key)) {
+          return key.value;
+        }
+      }
     );
     const childKeys = childProps.map(
-      (props) => ((props as t.ObjectProperty).key as t.Identifier).name
+      (props) => {
+        const key = (props as t.ObjectProperty).key;
+        if (t.isIdentifier(key)) {
+          return key.name;
+        } else if (t.isStringLiteral(key)) {
+          return key.value;
+        }
+      }
     );
 
     if (
@@ -646,6 +695,86 @@ ${interfaceText.trim()}${content}
     const code = await this.getCodeByClipboard();
     const updateCode = this.parseCode(code);
     this.openTemporaryFile(updateCode);
+  }
+
+  /** 数组对象类型整合 */
+  typeIntegration(elements: Array<t.Expression | t.SpreadElement | null>) {
+    // 对象数据数据整合在一起成为联合类型
+    const typeMap: Map<string, Array<t.TSTypeAnnotation>> = new Map([]);
+    // 基础类型
+    const basics: Array<any> = [];
+    // 复杂类型
+    const complexs: Array<t.TSTypeLiteral> = [];
+    elements.forEach(element => {
+      if (t.isTSTypeLiteral(element)) {
+        complexs.push(element);
+      } else {
+        basics.push(element);
+      }
+    });
+
+    if (complexs.length < 2) { return elements; }
+    for (let complex of complexs) {
+      for (let member of complex!.members) {
+        const key = generate((member as t.TSPropertySignature).key).code;
+        const typeAnnotations: Array<t.TSTypeAnnotation> = typeMap.get(key) ?? [];
+        typeMap.set(key, [...typeAnnotations, member.typeAnnotation?.typeAnnotation] as Array<t.TSTypeAnnotation>);
+      }
+    }
+
+    const updateNode = [];
+    for (let [key, value] of typeMap) {
+
+      let uniqueValue = value;
+      if (value.length > 1) {
+        // 去重
+        // TODO: 数组去重
+        const unique: Set<string> = new Set([]);
+        uniqueValue = value.reduce((types, data: any) => {
+          if (data.type === "TSTypeReference") {
+            const name = data.typeName.name;
+            if (!unique.has(name)) {
+              unique.add(name);
+              types.push(data);
+            }
+          } else {
+            if (!unique.has(data.type)) {
+              unique.add(data.type);
+              types.push(data);
+            }
+          }
+          return types;
+        }, [] as t.TSTypeAnnotation[]);
+      }
+
+      const node = t.tsPropertySignature(
+        t.identifier(key),
+        t.tsTypeAnnotation(t.tsUnionType(uniqueValue as any as t.TSType[]))
+      );
+
+      // 属性是否为可选
+      const optional = this.getConfig(CustomConfig.OPTIONAL) as boolean;
+      // 如果配置的是false, 那么需要主动判断某个类型是否为可选类型
+      const isOptional = value.length !== complexs.length;
+      node.optional = optional || isOptional;
+
+      updateNode.push(node);
+    }
+
+    // 将对象类型，组合成一个新类型
+    return [...basics, t.tsTypeLiteral(updateNode)];
+  }
+
+  /** 类型是否可复用 */
+  reusableId(code: string): string | undefined {
+    if (this.newVarible.size) {
+      // 判断是否有可复用的类型
+      for (let [id, expression] of this.newVarible.entries()) {
+        if (expression === code) {
+          return id;
+        }
+      }
+    }
   }
 
   /** 是否保留注释 */
