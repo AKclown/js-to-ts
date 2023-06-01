@@ -1,4 +1,4 @@
-## JS To TS
+## JS To TS  `优化中`
 
 **功能一:**&nbsp; 将api返回数据转为typescript类型声明  
 PS: 自动将类型内容分配到剪贴板  

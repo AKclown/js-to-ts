@@ -250,6 +250,72 @@ const a = [
   1,
 ];
 
+const test = {
+  a: 1,
+  b: 1,
+  children: [
+    {
+      a: 1,
+      b: 1,
+      children: [
+        {
+          a: 1,
+          b: 1,
+          children: [],
+        },
+      ],
+    },
+    {
+      a: 1,
+      b: 1,
+      children: [
+        {
+          a: 1,
+          b: 1,
+          children: [],
+        },
+      ],
+    },
+  ],
+};
+
+const a = [
+  {
+    a: 1,
+    b: 1,
+    children: [
+      {
+        c: 1,
+        d: 1,
+        Node: [
+          {
+            c: 2,
+            d: 2,
+            Node: [],
+          },
+        ],
+      },
+    ],
+  },
+  {
+    a: 1,
+    b: 1,
+    children: [
+      {
+        c: 1,
+        d: 1,
+        Node: [
+          {
+            c: 2,
+            d: 2,
+            Node: [],
+          },
+        ],
+      },
+    ],
+  },
+];
+
 const arr = ["1", 1, undefined, { aa: "12", a: { b: 1 } }];
 
 const AK = {

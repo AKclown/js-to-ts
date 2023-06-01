@@ -211,16 +211,17 @@ ${interfaceText.trim()}${content}
 
   parseCode(text: string): string {
     this.newVarible.clear();
-    const regular = /(var|let|const)\s*\w+\s*=.*/;
+    const regular = /(var|let|const)\s*(\w+)\s*=.*/;
     let updateText = text;
+    let variableName = updateText.match(regular)?.[2];
     // 判断是否存在变量
-    if (!regular.test(updateText)) {
+    if (!variableName) {
       // 不能存在分号
       const firstChar = String.fromCharCode(
         Math.floor(Math.random() * 26) + 97
       );
-      const variableName = uuids4().slice(0, 3);
-      updateText = `const ${firstChar}${variableName} = ${updateText}`
+      variableName = variableName || `${firstChar}${uuids4().slice(0, 3)}`;
+      updateText = `const ${variableName} = ${updateText}`
         .trimRight()
         .replace(/;$/, "");
     }
@@ -228,7 +229,8 @@ ${interfaceText.trim()}${content}
     const ast: ParseResult<t.File> = parse(updateText, {
       plugins: ["typescript"],
     });
-    this.traverseCode(ast);
+
+    this.traverseCode(ast, variableName);
     const code = generate(ast, {
       jsescOption: {
         quotes: 'single'
@@ -242,14 +244,14 @@ ${interfaceText.trim()}${content}
   // *********************
 
   // TODO: 暂未优化 (后续单独成拆成一个npm包 - 二进制包)
-  traverseCode(ast: ParseResult<t.File>) {
+  traverseCode(ast: ParseResult<t.File>, parentName: string) {
     const declaration = (ast.program.body[0] as t.VariableDeclaration)
       .declarations[0];
     const type = declaration!.init!.type;
     if (type === AstTypeEnum.objectExpression) {
-      traverse(ast, this.ObjectVisitor);
+      traverse(ast, this.ObjectVisitor, undefined, { parentName });
     } else if (type === AstTypeEnum.arrayExpression) {
-      traverse(ast, this.ArrayVisitor);
+      traverse(ast, this.ArrayVisitor, undefined, { parentName });
     }
     traverse(ast, this.VariableVisitor);
   }
@@ -310,40 +312,25 @@ ${interfaceText.trim()}${content}
             );
 
             if (complexTypes) {
-              // 判断子元素是否为ObjectExpression
-              if (
-                value.elements.length === 1 &&
-                t.isObjectExpression(value.elements[0]) &&
-                _that.isALLKeySame(
-                  path.get("value") as NodePath<t.ArrayExpression>
-                )
-              ) {
-                const variable = path.findParent((path) =>
-                  path.isVariableDeclarator()
-                )!;
-                // name为undefined表示 当前Node是第二层对象因此需要使用变量名为interface变量
-                const variableName = `${prefix}${((variable.node as t.VariableDeclarator).id as t.Identifier)
-                  .name
-                  }`;
-                // TODO: 可优化
-                const name = state.parentReferenceName ?? variableName;
-                typeAnnotation = t.tsTypeReference(
-                  t.identifier(`Array<${name}>`)
-                );
-              } else {
-                // !!! 存在问题
-                const originParentArrayReferenceName = state.parentArrayReferenceName;
-                state.parentArrayReferenceName = `${prefix}${id}`;
-                path.get("value").traverse(_that.ArrayVisitor, state);
-                state.parentArrayReferenceName = originParentArrayReferenceName;
+              const originparentName = state.parentName;
+              state.parentName = id;
+              path.get("value").traverse(_that.ArrayVisitor, state);
+              state.parentName = originparentName;
 
-                // 类型去重
-                let elements = (path.node.value as t.ArrayExpression).elements;
-                (path.node.value as t.ArrayExpression).elements = _that.typeIntegration(elements) as t.ArrayExpression['elements'];
+              // 类型去重
+              let elements = (path.node.value as t.ArrayExpression).elements;
+              const updateElements = _that.typeIntegration(elements) as t.ArrayExpression['elements'];
+              (path.node.value as t.ArrayExpression).elements = updateElements;
+
+              // TODO: 判断合并之后的数组对象是否跟父类型一致，一致则不在产生新数据
+              if (!(value.elements.length === 1 &&
+                t.isTSTypeLiteral(updateElements[0]) &&
+                _that.isALLKeySame(path.get("value") as NodePath<t.ArrayExpression>))) {
 
                 // 生成一个新的变量(判断是否存在一样的数据)
                 const variableExpression = generate(path.node.value).code;
-                const reusableId = _that.reusableId(id, variableExpression);
+                console.log('variableExpression: ', id, variableExpression);
+                const reusableId = _that.reusableById(id, variableExpression);
 
                 if (!reusableId) {
                   const variable = t.variableDeclaration("const", [
@@ -355,10 +342,14 @@ ${interfaceText.trim()}${content}
                   const programNode = path.findParent((path) =>
                     path.isProgram()
                   )!;
-                  (programNode.node as t.Program).body.push(variable);
+                  (programNode.node as t.Program).body.splice(1, 0, variable);
                 }
                 typeAnnotation = t.tsTypeReference(
                   t.identifier(`Array<${prefix}${reusableId ?? id}>`)
+                );
+              } else {
+                typeAnnotation = t.tsTypeReference(
+                  t.identifier(`Array<${prefix}${state.parentName}>`)
                 );
               }
             } else {
@@ -382,25 +373,19 @@ ${interfaceText.trim()}${content}
           path.skip();
         } else if (t.isObjectExpression(value)) {
           if (_that.isALLKeySame(path)) {
-            const variable = path.findParent((path) =>
-              path.isVariableDeclarator()
-            )!;
-            // name为undefined表示 当前Node是第二层对象因此需要使用变量名为interface变量
-            const variableName = `${prefix}${((variable.node as t.VariableDeclarator).id as t.Identifier).name
-              }`;
-            const name = state.parentReferenceName ?? variableName;
-            typeAnnotation = t.tsTypeReference(t.identifier(name));
+            const name = state.parentName;
+            typeAnnotation = t.tsTypeReference(t.identifier(`${prefix}${name}`));
           } else {
             const id = uuids4().slice(0, 4);
-            // !!! 这里还是要考虑直接获父元素的
-            const originParentReferenceName = state.parentReferenceName;
-            state.parentReferenceName = `${prefix}${id}`;
+            const originparentName = state.parentName;
+            state.parentName = id;
             path.get("value").traverse(_that.ObjectVisitor, state);
-            state.parentReferenceName = originParentReferenceName;
+            state.parentName = originparentName;
 
             // 生成一个新的变量(判断是否存在一样的数据)
             const variableExpression = generate(path.node.value).code;
-            const reusableId = _that.reusableId(id, variableExpression);
+            const reusableId = _that.reusableById(id, variableExpression);
+            console.log('variableExpression: ', id, variableExpression);
 
             if (!reusableId) {
               // 生成一个新的变量
@@ -411,7 +396,7 @@ ${interfaceText.trim()}${content}
                 ),
               ]);
               const programNode = path.findParent((path) => path.isProgram())!;
-              (programNode.node as t.Program).body.push(variable);
+              (programNode.node as t.Program).body.splice(1, 0, variable);
             }
 
             typeAnnotation = t.tsTypeReference(t.identifier(`${prefix}${reusableId ?? id}`));
@@ -455,15 +440,15 @@ ${interfaceText.trim()}${content}
     const prefix = this.getConfig(CustomConfig.PREFIX) as string;
     return {
       ObjectExpression(path: NodePath<t.ObjectExpression>, state: any = {}) {
-          const originParentReferenceName = state.parentReferenceName;
-          state.parentReferenceName = state.parentArrayReferenceName;
-          path.traverse(_that.ObjectVisitor, state);
-          state.parentReferenceName = originParentReferenceName;
-          path.replaceWith(
-            t.tsTypeLiteral(
-              path.node.properties as unknown as t.TSTypeElement[]
-            )
-          );
+        const originparentName = state.parentName;
+        state.parentName = state.parentName;
+        path.traverse(_that.ObjectVisitor, state);
+        state.parentName = originparentName;
+        path.replaceWith(
+          t.tsTypeLiteral(
+            path.node.properties as unknown as t.TSTypeElement[]
+          )
+        );
         path.skip();
       },
       ArrayExpression(path: NodePath<t.ArrayExpression>, state: any = {}) {
@@ -486,6 +471,9 @@ ${interfaceText.trim()}${content}
         } else {
           if (path.node.elements.length) {
             path.traverse(_that.ArrayVisitor, state);
+            // 类型去重
+            let elements = (path.node as t.ArrayExpression).elements;
+            (path.node as t.ArrayExpression).elements = _that.typeIntegration(elements) as t.ArrayExpression['elements'];
           }
         }
         path.skip();
@@ -611,13 +599,17 @@ ${interfaceText.trim()}${content}
       (parentObject?.node as t.ObjectExpression).properties ?? [];
 
     let childNode = path.node as t.ObjectExpression;
+    let childProps = childNode.properties ?? [];
     if (path.node.type === "ObjectProperty") {
-      childNode = path.node.value as t.ObjectExpression;
+      childProps = (path.node.value as t.ObjectExpression).properties ?? [];
     } else if (path.node.type === "ArrayExpression") {
-      childNode = path.node.elements[0] as t.ObjectExpression;
+      const element = path.node.elements[0];
+      if (t.isTSTypeLiteral(element)) {
+        childProps = ((element as t.TSTypeLiteral).members ?? []) as any;
+      } else {
+        childProps = (element as t.ObjectExpression).properties ?? [];
+      }
     }
-
-    const childProps = childNode.properties ?? [];
 
     // 获取到所有的key
     const parentKeys = parentProps.map(
@@ -710,7 +702,7 @@ ${interfaceText.trim()}${content}
   }
 
   /** 类型是否可复用 */
-  reusableId(originId: string, code: string): string | undefined {
+  reusableById(originId: string, code: string): string | undefined {
     if (this.newVarible.size) {
       // 判断是否有可复用的类型
       for (let [id, expression] of this.newVarible.entries()) {
