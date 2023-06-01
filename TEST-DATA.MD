@@ -316,6 +316,45 @@ const a = [
   },
 ];
 
+[
+  {
+    a: 1,
+    b: 1,
+    children: [
+      {
+        c: 1,
+        d: 1,
+        Node: [
+          {
+            c: 2,
+            d: 2,
+            a:1,
+            Node: [],
+          },
+        ],
+      },
+    ],
+  },
+  {
+    a: 1,
+    b: 1,
+    children: [
+      {
+        c: 1,
+        d: 1,
+        Node: [
+          {
+            c: 2,
+            d: 2,
+            a:'1',
+            Node: [],
+          },
+        ],
+      },
+    ],
+  },
+];
+
 const arr = ["1", 1, undefined, { aa: "12", a: { b: 1 } }];
 
 const AK = {

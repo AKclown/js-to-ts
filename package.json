@@ -2,7 +2,7 @@
   "name": "swagger-to-typescript",
   "displayName": "JS To TS",
   "description": "Converts js/json/swagger/api to typescript type",
-  "version": "0.4.6",
+  "version": "0.4.7",
   "publisher": "AKclown",
   "engines": {
     "vscode": "^1.63.0"
@@ -172,7 +172,6 @@
     "@types/glob": "^7.1.4",
     "@types/mocha": "^9.0.0",
     "@types/node": "14.x",
-    "@types/uuid": "^9.0.0",
     "@types/vscode": "^1.63.0",
     "@typescript-eslint/eslint-plugin": "^4.31.1",
     "@typescript-eslint/parser": "^4.31.1",
@@ -187,7 +186,6 @@
     "@babel/parser": "^7.21.4",
     "@babel/traverse": "^7.21.5",
     "@babel/types": "^7.20.7",
-    "fs-extra": "^11.1.1",
-    "uuid": "^9.0.0"
+    "fs-extra": "^11.1.1"
   }
 }

@@ -3,7 +3,6 @@ import * as t from "@babel/types";
 import generate from "@babel/generator";
 import traverse, { NodePath, Visitor } from "@babel/traverse";
 import { ParseResult, parse } from "@babel/parser";
-import { v4 as uuids4 } from "uuid";
 import { BaseClass } from "./BaseClass";
 import { IMain } from "./interface/Main.interface";
 import { Logger } from "./Logger";
@@ -46,9 +45,11 @@ export class Main extends BaseClass implements IMain {
   private blockRegular = /([^\{]*\{)([^\{\}]+)(\})/gm;
 
   private newVarible: Map<string, string>;
+  private varibleNames: Map<string, number>;
   constructor() {
     super();
     this.newVarible = new Map([]);
+    this.varibleNames = new Map([]);
   }
 
   // *********************
@@ -211,31 +212,26 @@ ${interfaceText.trim()}${content}
 
   parseCode(text: string): string {
     this.newVarible.clear();
+    this.varibleNames.clear();
     const regular = /(var|let|const)\s*(\w+)\s*=.*/;
     let updateText = text;
     let variableName = updateText.match(regular)?.[2];
     // 判断是否存在变量
     if (!variableName) {
       // 不能存在分号
-      const firstChar = String.fromCharCode(
-        Math.floor(Math.random() * 26) + 97
-      );
-      variableName = variableName || `${firstChar}${uuids4().slice(0, 3)}`;
+      variableName = variableName || `RootObject`;
       updateText = `const ${variableName} = ${updateText}`
         .trimRight()
         .replace(/;$/, "");
     }
+    this.varibleNames.set(variableName, 0);
 
     const ast: ParseResult<t.File> = parse(updateText, {
       plugins: ["typescript"],
     });
 
     this.traverseCode(ast, variableName);
-    const code = generate(ast, {
-      jsescOption: {
-        quotes: 'single'
-      }
-    }).code;
+    const code = generate(ast).code;
     return code;
   }
 
@@ -267,6 +263,7 @@ ${interfaceText.trim()}${content}
     return {
       ObjectProperty(path: NodePath<t.ObjectProperty>, state: any = {}) {
         const value = path.node.value;
+        let key = path.node.key;
         let typeAnnotation: t.TSType = t.tsUnknownKeyword();
         if (t.isStringLiteral(value) || t.isTemplateLiteral(value)) {
           typeAnnotation = t.tsStringKeyword();
@@ -305,7 +302,8 @@ ${interfaceText.trim()}${content}
           // typeAnnotation = t.tsFunctionType(null, []);
         } else if (t.isArrayExpression(value)) {
           if (value.elements.length) {
-            const id = uuids4().slice(0, 4);
+            const id = _that.getID(key);
+
             // 元素类型只存在基础类型，不生成新的interface定义
             const complexTypes = value.elements.some(
               (element) => !(t.isLiteral(element) || t.isIdentifier(element) || t.isUnaryExpression(element))
@@ -329,7 +327,6 @@ ${interfaceText.trim()}${content}
 
                 // 生成一个新的变量(判断是否存在一样的数据)
                 const variableExpression = generate(path.node.value).code;
-                console.log('variableExpression: ', id, variableExpression);
                 const reusableId = _that.reusableById(id, variableExpression);
 
                 if (!reusableId) {
@@ -376,7 +373,7 @@ ${interfaceText.trim()}${content}
             const name = state.parentName;
             typeAnnotation = t.tsTypeReference(t.identifier(`${prefix}${name}`));
           } else {
-            const id = uuids4().slice(0, 4);
+            const id = _that.getID(key);
             const originparentName = state.parentName;
             state.parentName = id;
             path.get("value").traverse(_that.ObjectVisitor, state);
@@ -385,7 +382,6 @@ ${interfaceText.trim()}${content}
             // 生成一个新的变量(判断是否存在一样的数据)
             const variableExpression = generate(path.node.value).code;
             const reusableId = _that.reusableById(id, variableExpression);
-            console.log('variableExpression: ', id, variableExpression);
 
             if (!reusableId) {
               // 生成一个新的变量
@@ -405,8 +401,6 @@ ${interfaceText.trim()}${content}
           path.skip();
         }
 
-        let key = path.node.key as t.Expression;
-
         if (!(key as t.Identifier)?.name) {
           // 判断类型声明是不是复杂名称，例如包含了-
           const regular = /[^(\w|_|$)]/g;
@@ -418,7 +412,7 @@ ${interfaceText.trim()}${content}
         }
 
         const node = t.tsPropertySignature(
-          key,
+          key as t.Expression,
           t.tsTypeAnnotation(typeAnnotation)
         );
 
@@ -594,7 +588,6 @@ ${interfaceText.trim()}${content}
   ): boolean {
     // 找到最近一个父节点为"ObjectExpression"的Node
     const parentObject = path.findParent((path) => path.isObjectExpression());
-    console.log('parentObject: ', parentObject?.node);
     const parentProps =
       (parentObject?.node as t.ObjectExpression).properties ?? [];
 
@@ -736,6 +729,21 @@ ${interfaceText.trim()}${content}
       return uniqueValue;
     }
     return value;
+  }
+
+  /** 获取到id */
+  getID(key: t.PrivateName | t.Expression) {
+    let id = (key as t.Identifier)?.name ?? (key as t.StringLiteral)?.value;
+    id = `${id.charAt(0).toUpperCase()}${id.slice(1)}`;
+    let updateId = id;
+    if (this.varibleNames.has(id)) {
+      const index = (this.varibleNames.get(id) ?? 0) + 1;
+      updateId = `${id}${index}`;
+      this.varibleNames.set(id, index);
+    } else {
+      this.varibleNames.set(id, 0);
+    }
+    return updateId;
   }
 
   /** 是否保留注释 */
