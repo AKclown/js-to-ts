@@ -49,11 +49,20 @@ export class BaseClass implements IBaseClass {
         const range = new Range(item.start, item.end);
         data.push({
           range,
-          text: editor.document.getText(range),
+          text: this.getActiveTextByStartEnd(item.start, item.end),
         });
       });
     }
     return data;
+  }
+
+  getActiveTextByStartEnd(start: Position, end: Position): string {
+    const editor = window.activeTextEditor;
+    const range = new Range(start, end);
+    if(editor) {
+      return editor.document.getText(range);
+    }
+    return '';
   }
 
   /** 设置光标位置 */
@@ -63,6 +72,7 @@ export class BaseClass implements IBaseClass {
       const newPosition = new Position(line, character);
       const newSelection = new Selection(newPosition, newPosition);
       editor.selection = newSelection;
+      console.log('editor.selection: ', editor.selection);
     }
   }
 
