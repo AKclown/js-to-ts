@@ -8,7 +8,7 @@ import { IMain } from "./interface/Main.interface";
 import { Logger } from "./Logger";
 import { ErrorEnum } from "./interface/Logger.interface";
 import { CustomConfig, Icomments } from "./constant";
-
+import {  Position, Range } from "vscode";
 export enum AstTypeEnum {
   identifier = "Identifier",
   stringLiteral = "StringLiteral",
@@ -60,12 +60,49 @@ export class Main extends BaseClass implements IMain {
   addBlockComments() {
     // TODO: 未完成
     const editor = window.activeTextEditor;
+    const data = this.getSelectedInfo();
+    const hasSelect = !!data.length;
     if (editor) {
+      let cursorPosition: Position = new Position(0, 0);
       const active = editor.selection.active;
       editor.edit((editorContext) => {
-        editorContext.insert(active, `/**  */`);
+        if (!hasSelect) {
+          /** 未选中任何内容 */
+          cursorPosition = new Position(active.line, active.character + 4);
+          editorContext.insert(active, `/**  */`);
+          return;
+        }
+
+        data.forEach(item => {
+          const { range: { start, end } } = item;
+          if (start.line === end.line) {
+            /** 选中单行 */
+            cursorPosition = new Position(end.line, end.character + 4);
+            editorContext.replace(item.range, `/** ${item.text} */`);
+          } else {
+            /** 选中多行 */
+
+            // 默认从该行第一个文本开始选择
+            const newStart = new Position(start.line, 0);
+            const newEnd = new Position(end.line + 1, 0);
+            const text = this.getActiveTextByStartEnd(newStart, newEnd).slice(0, -1);
+            // 取出最小空格
+            const minSpaceNum = text.split(/\n/g).reduce((prev, cur) => Math.min(cur.length - cur.trimStart().length, prev), Number.MAX_SAFE_INTEGER);
+            const spaceStr = ' '.repeat(minSpaceNum);
+            // 将第二行开始的所有空格删掉minSpaceNum个，然后删掉第一行的minSpaceNum个空格
+            const replaceText = text.replace(/\n\s*/g, v => `${spaceStr} * ${v.slice(minSpaceNum || 1)}`).slice(minSpaceNum - 1 >= 0 ? minSpaceNum - 1 : 0);
+            // todo: 需要获取最后一个字符
+            const range = new Range(newStart, newEnd);
+            editorContext.insert(newEnd, '\n');
+            editorContext.replace(range, `${spaceStr}/**\n ${spaceStr}* ${replaceText}\n${spaceStr} */`);
+
+            cursorPosition = new Position(newEnd.line + 1, minSpaceNum);
+          }
+        });
+
+        // editorContext.insert(active, `/**  */`);
       });
-      this.setCursorPosition(active.line, active.character + 4);
+      this.setCursorPosition(cursorPosition.line, cursorPosition.character);
     }
   }
 
