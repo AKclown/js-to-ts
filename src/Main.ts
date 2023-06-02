@@ -735,7 +735,7 @@ ${interfaceText.trim()}${content}
   getID(key: t.PrivateName | t.Expression) {
     let id = (key as t.Identifier)?.name ?? (key as t.StringLiteral)?.value;
     id = `${id.charAt(0).toUpperCase()}${id.slice(1)}`;
-    let updateId = id;
+    let updateId = this.toCamelCase(id);
     if (this.varibleNames.has(id)) {
       const index = (this.varibleNames.get(id) ?? 0) + 1;
       updateId = `${id}${index}`;
@@ -774,6 +774,10 @@ ${interfaceText.trim()}${content}
         break;
       }
     }
-
   }
+  /** 字符串转驼峰 */
+  toCamelCase(name: string) {
+    return name.replace(/[-_](.)/g, (_, c) => c.toUpperCase());
+  }
+
 }
