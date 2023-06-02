@@ -72,7 +72,6 @@ export class BaseClass implements IBaseClass {
       const newPosition = new Position(line, character);
       const newSelection = new Selection(newPosition, newPosition);
       editor.selection = newSelection;
-      console.log('editor.selection: ', editor.selection);
     }
   }
 
