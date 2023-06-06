@@ -2,7 +2,7 @@
   "name": "swagger-to-typescript",
   "displayName": "JS To TS",
   "description": "Converts js/json/swagger/api to typescript type",
-  "version": "0.4.8",
+  "version": "0.4.9",
   "publisher": "AKclown",
   "engines": {
     "vscode": "^1.63.0"

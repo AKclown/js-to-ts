@@ -8,7 +8,7 @@ import { IMain } from "./interface/Main.interface";
 import { Logger } from "./Logger";
 import { ErrorEnum } from "./interface/Logger.interface";
 import { CustomConfig, Icomments } from "./constant";
-import {  Position, Range } from "vscode";
+import { Position, Range } from "vscode";
 export enum AstTypeEnum {
   identifier = "Identifier",
   stringLiteral = "StringLiteral",
@@ -44,12 +44,14 @@ export class Main extends BaseClass implements IMain {
   private contentRegular = /(\w+).*\(([^,]+).*\)((?:\:)([^,|}|\r|\n]+))?/g;
   private blockRegular = /([^\{]*\{)([^\{\}]+)(\})/gm;
 
+  private levelCache: Map<number, any>;
   private newVarible: Map<string, string>;
   private varibleNames: Map<string, number>;
   constructor() {
     super();
     this.newVarible = new Map([]);
     this.varibleNames = new Map([]);
+    this.levelCache = new Map([]);
   }
 
   // *********************
@@ -58,7 +60,6 @@ export class Main extends BaseClass implements IMain {
 
   /** 添加注释 */
   addBlockComments() {
-    // TODO: 未完成
     const editor = window.activeTextEditor;
     const data = this.getSelectedInfo();
     const hasSelect = !!data.length;
@@ -282,9 +283,9 @@ ${interfaceText.trim()}${content}
       .declarations[0];
     const type = declaration!.init!.type;
     if (type === AstTypeEnum.objectExpression) {
-      traverse(ast, this.ObjectVisitor, undefined, { parentName });
+      traverse(ast, this.ObjectVisitor, undefined, { parentName, level: 0 });
     } else if (type === AstTypeEnum.arrayExpression) {
-      traverse(ast, this.ArrayVisitor, undefined, { parentName });
+      traverse(ast, this.ArrayVisitor, undefined, { parentName, level: 0 });
     }
     traverse(ast, this.VariableVisitor);
   }
@@ -345,47 +346,53 @@ ${interfaceText.trim()}${content}
             const complexTypes = value.elements.some(
               (element) => !(t.isLiteral(element) || t.isIdentifier(element) || t.isUnaryExpression(element))
             );
-
             if (complexTypes) {
+              // $判断当前层级是否为0，为0时清空旧数据，表示换了一个数组
+              state.level++;
+              const hasCache = _that.levelCache.has(state.level);
+              const levelCacheData = _that.levelCache.get(state.level);
+
               const originparentName = state.parentName;
-              state.parentName = id;
+              state.parentName = levelCacheData?.id ?? id;
               path.get("value").traverse(_that.ArrayVisitor, state);
               state.parentName = originparentName;
 
-              // 类型去重
               let elements = (path.node.value as t.ArrayExpression).elements;
-              const updateElements = _that.typeIntegration(elements) as t.ArrayExpression['elements'];
+              let updateElements: t.ArrayExpression['elements'] = [];
+              // $ 判断是否存在同一层级的对象数据,存在进行合并
+              if (hasCache) {
+                // 存在数据，数据进行合并
+                const cacheElements = levelCacheData.value.elements;
+                // $ 类型去重
+                updateElements = _that.typeIntegration([...cacheElements, ...elements]) as t.ArrayExpression['elements'];
+              } else {
+                // 不存在数据，保留原本的
+                updateElements = _that.typeIntegration(elements) as t.ArrayExpression['elements'];
+              }
               (path.node.value as t.ArrayExpression).elements = updateElements;
+              _that.levelCache.set(state.level, { id: levelCacheData?.id ?? id, value: path.node.value });
 
               // TODO: 判断合并之后的数组对象是否跟父类型一致，一致则不在产生新数据
-              if (!(value.elements.length === 1 &&
-                t.isTSTypeLiteral(updateElements[0]) &&
-                _that.isALLKeySame(path.get("value") as NodePath<t.ArrayExpression>))) {
-
-                // 生成一个新的变量(判断是否存在一样的数据)
-                const variableExpression = generate(path.node.value).code;
-                const reusableId = _that.reusableById(id, variableExpression);
-
-                if (!reusableId) {
+              state.level--;
+              if (!state.level) {
+                const programNode = path.findParent((path) =>
+                  path.isProgram()
+                )!;
+                for (let { id, value } of _that.levelCache.values()) {
                   const variable = t.variableDeclaration("const", [
                     t.variableDeclarator(
                       t.identifier(id),
-                      path.node.value as t.ArrayExpression
+                      value as t.ArrayExpression
                     ),
                   ]);
-                  const programNode = path.findParent((path) =>
-                    path.isProgram()
-                  )!;
                   (programNode.node as t.Program).body.splice(1, 0, variable);
                 }
-                typeAnnotation = t.tsTypeReference(
-                  t.identifier(`Array<${prefix}${reusableId ?? id}>`)
-                );
-              } else {
-                typeAnnotation = t.tsTypeReference(
-                  t.identifier(`Array<${prefix}${state.parentName}>`)
-                );
+                _that.levelCache.clear();
               }
+
+              typeAnnotation = t.tsTypeReference(
+                t.identifier(`Array<${prefix}${levelCacheData?.id ?? id}>`)
+              );
             } else {
               // 基础类型
               path.get("value").traverse(_that.ArrayVisitor, state);
@@ -406,34 +413,34 @@ ${interfaceText.trim()}${content}
           }
           path.skip();
         } else if (t.isObjectExpression(value)) {
-          if (_that.isALLKeySame(path)) {
-            const name = state.parentName;
-            typeAnnotation = t.tsTypeReference(t.identifier(`${prefix}${name}`));
-          } else {
-            const id = _that.getID(key);
-            const originparentName = state.parentName;
-            state.parentName = id;
-            path.get("value").traverse(_that.ObjectVisitor, state);
-            state.parentName = originparentName;
+          // if (_that.isALLKeySame(path)) {
+          //   const name = state.parentName;
+          //   typeAnnotation = t.tsTypeReference(t.identifier(`${prefix}${name}`));
+          // } else {
+          const id = _that.getID(key);
+          const originparentName = state.parentName;
+          state.parentName = id;
+          path.get("value").traverse(_that.ObjectVisitor, state);
+          state.parentName = originparentName;
 
-            // 生成一个新的变量(判断是否存在一样的数据)
-            const variableExpression = generate(path.node.value).code;
-            const reusableId = _that.reusableById(id, variableExpression);
+          // 生成一个新的变量(判断是否存在一样的数据)
+          const variableExpression = generate(path.node.value).code;
+          const reusableId = _that.reusableById(id, variableExpression);
 
-            if (!reusableId) {
-              // 生成一个新的变量
-              const variable = t.variableDeclaration("const", [
-                t.variableDeclarator(
-                  t.identifier(id),
-                  path.node.value as t.ObjectExpression
-                ),
-              ]);
-              const programNode = path.findParent((path) => path.isProgram())!;
-              (programNode.node as t.Program).body.splice(1, 0, variable);
-            }
-
-            typeAnnotation = t.tsTypeReference(t.identifier(`${prefix}${reusableId ?? id}`));
+          if (!reusableId) {
+            // 生成一个新的变量
+            const variable = t.variableDeclaration("const", [
+              t.variableDeclarator(
+                t.identifier(id),
+                path.node.value as t.ObjectExpression
+              ),
+            ]);
+            const programNode = path.findParent((path) => path.isProgram())!;
+            (programNode.node as t.Program).body.splice(1, 0, variable);
           }
+
+          typeAnnotation = t.tsTypeReference(t.identifier(`${prefix}${reusableId ?? id}`));
+          // }
 
           path.skip();
         }
@@ -468,19 +475,17 @@ ${interfaceText.trim()}${content}
   /** 数组处理 */
   get ArrayVisitor(): any {
     const _that = this;
-    const prefix = this.getConfig(CustomConfig.PREFIX) as string;
     return {
       ObjectExpression(path: NodePath<t.ObjectExpression>, state: any = {}) {
-        const originparentName = state.parentName;
-        state.parentName = state.parentName;
+
         path.traverse(_that.ObjectVisitor, state);
-        state.parentName = originparentName;
         path.replaceWith(
           t.tsTypeLiteral(
             path.node.properties as unknown as t.TSTypeElement[]
           )
         );
         path.skip();
+
       },
       ArrayExpression(path: NodePath<t.ArrayExpression>, state: any = {}) {
         // 判断最外层是否为数组
@@ -501,10 +506,43 @@ ${interfaceText.trim()}${content}
           }
         } else {
           if (path.node.elements.length) {
+            state.level++;
             path.traverse(_that.ArrayVisitor, state);
             // 类型去重
             let elements = (path.node as t.ArrayExpression).elements;
-            (path.node as t.ArrayExpression).elements = _that.typeIntegration(elements) as t.ArrayExpression['elements'];
+            // $ 数据同层对比合并，可选择等
+            const hasCache = _that.levelCache.has(state.level);
+            const levelCacheData = _that.levelCache.get(state.level);
+            let updateElements: t.ArrayExpression['elements'] = [];
+            if (hasCache) {
+              // 存在数据，数据进行合并
+              const cacheElements = levelCacheData.value.elements;
+              // $ 类型去重
+              updateElements = _that.typeIntegration([...cacheElements, ...elements]) as t.ArrayExpression['elements'];
+            } else {
+              // 不存在数据，保留原本的
+              updateElements = _that.typeIntegration(elements) as t.ArrayExpression['elements'];
+            }
+            (path.node as t.ArrayExpression).elements = updateElements;
+
+            // TODO: 判断合并之后的数组对象是否跟父类型一致，一致则不在产生新数据
+            state.level--;
+            if (!state.level) {
+              const programNode = path.findParent((path) =>
+                path.isProgram()
+              )!;
+              for (let { id, value } of _that.levelCache.values()) {
+                const variable = t.variableDeclaration("const", [
+                  t.variableDeclarator(
+                    t.identifier(id),
+                    value as t.ArrayExpression
+                  ),
+                ]);
+                (programNode.node as t.Program).body.splice(1, 0, variable);
+              }
+              _that.levelCache.clear();
+            }
+
           }
         }
         path.skip();
@@ -712,9 +750,10 @@ ${interfaceText.trim()}${content}
     if (typeMap.size) {
       for (let [key, value] of typeMap) {
         let uniqueValue = this.deduplication(value);
+        let isUnion = !!(uniqueValue.length > 1);
         const node = t.tsPropertySignature(
           t.identifier(key),
-          t.tsTypeAnnotation(t.tsUnionType(uniqueValue as any as t.TSType[]))
+          t.tsTypeAnnotation(isUnion ? t.tsUnionType(uniqueValue as any as t.TSType[]) : uniqueValue[0] as any as t.TSType)
         );
 
         // 属性是否为可选
@@ -748,6 +787,7 @@ ${interfaceText.trim()}${content}
   deduplication(value: Array<t.Expression | t.SpreadElement | null>) {
     if (value.length > 1) {
       const unique: Set<string> = new Set([]);
+      // TODO： 已經存在數組，應該整合在一起，並且去掉unknown
       const uniqueValue = value.reduce((types, data: any) => {
         if (data.type === "TSTypeReference") {
           const name = data.typeName.name;
@@ -755,6 +795,22 @@ ${interfaceText.trim()}${content}
             unique.add(name);
             types.push(data);
           }
+        } else if (data.type === "TSUnionType") {
+          const unionTypes = data.types;
+          unionTypes.forEach((unionType: any) => {
+            if (unionType.type === "TSTypeReference") {
+              const name = unionType.typeName.name;
+              if (!unique.has(name)) {
+                unique.add(name);
+                types.push(data);
+              }
+            } else {
+              if (!unique.has(unionType.type)) {
+                unique.add(unionType.type);
+                types.push(unionType);
+              }
+            }
+          });
         } else {
           if (!unique.has(data.type)) {
             unique.add(data.type);
@@ -812,9 +868,9 @@ ${interfaceText.trim()}${content}
       }
     }
   }
+
   /** 字符串转驼峰 */
   toCamelCase(name: string) {
     return name.replace(/[-_](.)/g, (_, c) => c.toUpperCase());
   }
-
 }
