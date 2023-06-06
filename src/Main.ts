@@ -9,6 +9,7 @@ import { Logger } from "./Logger";
 import { ErrorEnum } from "./interface/Logger.interface";
 import { CustomConfig, Icomments } from "./constant";
 import { Position, Range } from "vscode";
+
 export enum AstTypeEnum {
   identifier = "Identifier",
   stringLiteral = "StringLiteral",
@@ -100,8 +101,6 @@ export class Main extends BaseClass implements IMain {
             cursorPosition = new Position(newEnd.line + 1, minSpaceNum);
           }
         });
-
-        // editorContext.insert(active, `/**  */`);
       });
       this.setCursorPosition(cursorPosition.line, cursorPosition.character);
     }
@@ -413,10 +412,6 @@ ${interfaceText.trim()}${content}
           }
           path.skip();
         } else if (t.isObjectExpression(value)) {
-          // if (_that.isALLKeySame(path)) {
-          //   const name = state.parentName;
-          //   typeAnnotation = t.tsTypeReference(t.identifier(`${prefix}${name}`));
-          // } else {
           const id = _that.getID(key);
           const originparentName = state.parentName;
           state.parentName = id;
@@ -440,7 +435,6 @@ ${interfaceText.trim()}${content}
           }
 
           typeAnnotation = t.tsTypeReference(t.identifier(`${prefix}${reusableId ?? id}`));
-          // }
 
           path.skip();
         }
@@ -525,7 +519,7 @@ ${interfaceText.trim()}${content}
             }
             (path.node as t.ArrayExpression).elements = updateElements;
 
-            // TODO: 判断合并之后的数组对象是否跟父类型一致，一致则不在产生新数据
+            //  判断合并之后的数组对象是否跟父类型一致，一致则不在产生新数据
             state.level--;
             if (!state.level) {
               const programNode = path.findParent((path) =>
@@ -627,7 +621,7 @@ ${interfaceText.trim()}${content}
                 ? t.tSUnionType(elements as unknown as Array<t.TSType>)
                 : t.tsUnknownKeyword();
 
-              // 判断存在问题
+              // TODO: 判断存在问题
               // if (isOriginalArray) {
               //   typeAnnotation = t.tsArrayType(typeAnnotation);
               // }
