@@ -97,7 +97,7 @@ export class ApiToTsViewProvider implements vscode.WebviewViewProvider {
             <input
               id="server-url"
               type="text"
-              placeholder=${localize('js.to.ts.enter.your.server.url')}
+              placeholder="${localize('js.to.ts.enter.your.server.url')}"
             />
           </div>
           <div>
@@ -105,7 +105,7 @@ export class ApiToTsViewProvider implements vscode.WebviewViewProvider {
             <textarea
               name=""
               id="headers"
-              placeholder=${localize('js.to.ts.enter.your.headers')}
+              placeholder="${localize("js.to.ts.enter.your.headers")}"
             ></textarea>
           </div>
           <div>
@@ -113,7 +113,7 @@ export class ApiToTsViewProvider implements vscode.WebviewViewProvider {
             <textarea
               name=""
               id="params"
-              placeholder=${localize('js.to.ts.enter.your.params')}
+              placeholder="${localize('js.to.ts.enter.your.params')}"
             ></textarea>
           </div>
           
