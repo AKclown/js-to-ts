@@ -18,7 +18,8 @@ export enum CustomConfig {
   EXPORT_TYPE = 'exportType',
   OPTIONAL = 'optional',
   COMMENTS = 'comments',
-  PREFIX = 'prefix'
+  PREFIX = 'prefix',
+  STRICT_MODE = 'strictMode'
 }
 
 export enum Icomments {

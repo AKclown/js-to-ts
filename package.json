@@ -67,6 +67,11 @@
             "default": true,
             "description": "%js.to.ts.configuration.optional.description%"
           },
+          "strictMode": {
+            "type": "boolean",
+            "default": true,
+            "description": "%js.to.ts.configuration.strict.mode.description%"
+          },
           "comments": {
             "type": "string",
             "enum": [
