@@ -50,15 +50,11 @@ export class Main extends BaseClass implements IMain {
   private newVarible: Map<string, string>;
   /** 变量名称的缓存 */
   private varibleNames: Map<string, number>;
-  /** 对象的层级缓存数据 */
-  // TODO: 父层级的类型暂时确定不了， 需要解决
-  private objectLevelCache: Map<number, any>;
   constructor() {
     super();
     this.newVarible = new Map([]);
     this.varibleNames = new Map([]);
     this.arrayLevelCache = new Map([]);
-    this.objectLevelCache = new Map([]);
   }
 
   // *********************
@@ -298,10 +294,11 @@ ${interfaceText.trim()}${content}
      * 2. 对象的层级遇到数组时，不再进行层级累加(数组由1进行操作)
      */
     if (type === AstTypeEnum.objectExpression) {
-      traverse(ast, this.ObjectVisitor, undefined, { parentName, arrayLevel: 0, objectLevel: 0 });
+      traverse(ast, this.ObjectVisitor, undefined, { parentName, arrayLevel: 0 });
     } else if (type === AstTypeEnum.arrayExpression) {
-      traverse(ast, this.ArrayVisitor, undefined, { parentName, arrayLevel: 0, objectLevel: 0 });
+      traverse(ast, this.ArrayVisitor, undefined, { parentName, arrayLevel: 0 });
     }
+    traverse(ast, this.ProgramVisitor);
     traverse(ast, this.VariableVisitor);
   }
 
@@ -392,8 +389,6 @@ ${interfaceText.trim()}${content}
                 const programNode = path.findParent((path) =>
                   path.isProgram()
                 )!;
-                // $ 判断合并之后的数组对象是否跟父类型一致，一致则不在产生新数据
-                _that.referenceByCall();
                 for (let { id, value } of _that.arrayLevelCache.values()) {
                   const variable = t.variableDeclaration("const", [
                     t.variableDeclarator(
@@ -437,9 +432,10 @@ ${interfaceText.trim()}${content}
 
           // 生成一个新的变量(判断是否存在一样的数据)
           const variableExpression = generate(path.node.value).code;
+          const isBlank = variableExpression === '{}';
           const reusableId = _that.reusableById(id, variableExpression);
 
-          if (!reusableId) {
+          if (!reusableId && !isBlank) {
             // 生成一个新的变量
             const variable = t.variableDeclaration("const", [
               t.variableDeclarator(
@@ -451,7 +447,8 @@ ${interfaceText.trim()}${content}
             (programNode.node as t.Program).body.splice(1, 0, variable);
           }
 
-          typeAnnotation = t.tsTypeReference(t.identifier(`${prefix}${reusableId ?? id}`));
+          const prototyName = isBlank ? 'Record<string, unknown>' : `${prefix}${reusableId ?? id}`;
+          typeAnnotation = t.tsTypeReference(t.identifier(prototyName));
 
           path.skip();
         }
@@ -543,8 +540,6 @@ ${interfaceText.trim()}${content}
               const programNode = path.findParent((path) =>
                 path.isProgram()
               )!;
-              // $ 判断合并之后的数组对象是否跟父类型一致，一致则不在产生新数据
-              _that.referenceByCall();
               for (let { id, value } of _that.arrayLevelCache.values()) {
                 const variable = t.variableDeclaration("const", [
                   t.variableDeclarator(
@@ -604,6 +599,24 @@ ${interfaceText.trim()}${content}
           _that.retainComments(path);
         }
       },
+    };
+  }
+
+
+  /** 数据是否可自己引用自己 */
+  get ProgramVisitor(): any {
+    const _that = this;
+    return {
+      Program(path: NodePath<t.Program>, state: any = {}) {
+        console.log('path: ', path.node);
+        try {
+          const body = path.node.body;
+          _that.deepTraverseral(body, body[0], null);
+        } catch (error) {
+          console.error('error: ', error);
+          // $ 如果判断是否可自调用报错，则不影响原有逻辑
+        }
+      }
     };
   }
 
@@ -734,6 +747,7 @@ ${interfaceText.trim()}${content}
 
   /** 类型是否可复用 */
   reusableById(originId: string, code: string): string | undefined {
+    // TODO:对比 - 策略可优化
     if (this.newVarible.size) {
       // 判断是否有可复用的类型
       for (let [id, expression] of this.newVarible.entries()) {
@@ -836,62 +850,169 @@ ${interfaceText.trim()}${content}
     return name.replace(/[-_](.)/g, (_, c) => c.toUpperCase());
   }
 
-  /** 自引用 */
-  referenceByCall() {
-    try {
+  /** 判断自引用数据 - 深度遍历 */
+  // TODO: 暂未优化 - 方法整合
+  deepTraverseral(body: any[], prev: any, next: any | null) {
+    // TODO 联合类型复杂类型
+    const strictMode = this.getConfig(CustomConfig.STRICT_MODE) as boolean;
+    const prefix = this.getConfig(CustomConfig.PREFIX) as string;
 
-      /**
-       * 1. 严格模式，可选和不可选是不同情况。不进行合并
-       * 2. 严格模式，类型不做兼容处理，需要完全一致才可以。联合类型不一致就表示不是同一个
-       */
-      const strictMode = this.getConfig(CustomConfig.STRICT_MODE) as boolean;
-      const prefix = this.getConfig(CustomConfig.PREFIX) as string;
+    const prevDeclaration = prev.declarations[0];
+    const prevInit = prevDeclaration.init;
+    let prevProps = t.isObjectExpression(prevInit) ? prevInit.properties : prevInit.elements[0].members;
 
-      const entries = Array.from(this.arrayLevelCache.entries());
-
-      entries.reduce((child, parent) => {
-        const [childKey, childValues] = child;
-        const [parentKey, parentValues] = parent;
-        if (strictMode) {
-          // $ 严格模式，必须完全一致
-          let childCode = generate(childValues.value).code;
-          const parentCode = generate(parentValues.value).code;
-          // 将子节点的Array<unkown> 转换成 Array<子ID>再与父进行比较
-          childCode = childCode.replace(/Array\<unknown\>;/, `Array<${prefix}${childValues.id}>;`);
-          if (childCode === parentCode) {
-            // 完全相同，修改父节点的值为引用自身
-            const parentMembers = parentValues.value.elements[0].members;
-            for (const parentMember of parentMembers) {
-              const parentType = parentMember.typeAnnotation.typeAnnotation;
-              if (t.isTSTypeReference(parentType) && (parentType.typeName as t.Identifier).name === `Array<${prefix}${childValues.id}>`) {
-                // 修改父节点的元素类型映射
-                (parentType.typeName as t.Identifier).name = `Array<${prefix}${parentValues.id}>`;
-                // 删除需要添加的此变量
-                this.arrayLevelCache.delete(childKey);
+    if (next) {
+      const nextDeclaration = next.declarations[0];
+      const nextInit = nextDeclaration.init;
+      const prevId = prevDeclaration.id.name;
+      const nextId = nextDeclaration.id.name;
+      let nextProps = t.isObjectExpression(nextInit) ? nextInit.properties : nextInit.elements[0].members;
+      if (nextProps) {
+        // 判断next是否存在非基础类型
+        for (let props of nextProps) {
+          const type = props.typeAnnotation.typeAnnotation;
+          if (t.isTSTypeReference(type)) {
+            // 数组值需要变量名称，并且去掉prefix前缀
+            let name = (type.typeName as t.Identifier).name;
+            const reg = new RegExp("^Array<(" + prefix + ".*)>");
+            name = name.replace(reg, (match, p1) => p1).replace(new RegExp(prefix), '');
+            // 如果是Record<string, unknown>或者unknown表示最后一个了
+            if (!['Record<string, unknown>', 'unknown'].includes(name)) {
+              // 找到对应的变量声明
+              for (let [index, value] of body.entries()) {
+                const declaration = value.declarations[0];
+                if (declaration.id.name === name) {
+                  let isConsistent = this.deepTraverseral(body, next, value);
+                  if (isConsistent) {
+                    // 父子一致，删除当前变量声明
+                    body.splice(index, 1);
+                  }
+                  break;
+                }
               }
             }
-            // 更新新增变量的数据
-            this.arrayLevelCache.set(parentKey, parentValues);
-            parent = [parentKey, parentValues];
-          } else {
-            // 子节点有一层不满足 就直接结束循环
-            throw new Error('break');
           }
-        } else {
-          /**
-           * $ 非严格模式，对数据需要做处理
-           * 1. 属性值兼容例如: 'string' | 'number' 兼容 'number'或者’string';
-           * 2. 属性为可选时，不需要父子节点都存在
-           */
-
         }
-        return parent;
-      });
+      } else {
+        // 数组中存在基础类型
+        nextProps = nextInit.elements;
+        const tsTypeLiterals = nextProps.filter((props: any) => t.isTSTypeLiteral(props));
+        for (let tsTypeLiteral of tsTypeLiterals) {
+          const members = tsTypeLiteral.members;
+          for (let member of members) {
+            const type = member.typeAnnotation.typeAnnotation;
+            if (t.isTSTypeReference(type)) {
+              // 数组值需要变量名称，并且去掉prefix前缀
+              let name = (type.typeName as t.Identifier).name;
+              const reg = new RegExp("^Array<(" + prefix + ".*)>");
+              name = name.replace(reg, (match, p1) => p1).replace(new RegExp(prefix), '');
+              // 如果是Record<string, unknown>或者unknown表示最后一个了
+              if (!['Record<string, unknown>', 'unknown'].includes(name)) {
+                // 找到对应的变量声明
+                for (let [index, value] of body.entries()) {
+                  const declaration = value.declarations[0];
+                  if (declaration.id.name === name) {
+                    let isConsistent = this.deepTraverseral(body, next, value);
+                    if (isConsistent) {
+                      // 父子一致，删除当前变量声明
+                      body.splice(index, 1);
+                    }
+                    break;
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
 
-    } catch (error) {
-      // 忽略错误，目的只为了终止reduce
+      // !!! 严格模式 (需要完全一致类型 - 不做任何兼容处理)
+      if (strictMode) {
+        // $ 判断父子类型是否一致,一致修改父元素类型
+        const prevCode = generate(prevInit).code.replace(/(^\[|\]$|\,)/g, '');
+        let nextCode = generate(nextInit).code;
+        // 对象
+        nextCode = nextCode.replace(/Record\<string, unknown\>;/, `${prefix}${nextId};`);
+        // 数组
+        nextCode = nextCode.replace(/Array\<unknown\>;/, `Array<${prefix}${nextId}>;`).replace(/(^\[|\]$|\,)/g, '');
+
+        if (nextCode === prevCode) {
+          // 完全相同，修改父节点的值为引用自身
+          for (const props of prevProps) {
+            const parentType = props.typeAnnotation.typeAnnotation;
+            if (t.isTSTypeReference(parentType)) {
+              const name = (parentType.typeName as t.Identifier).name;
+              if (name === `Array<${prefix}${nextId}>`) {
+                (parentType.typeName as t.Identifier).name = `Array<${prefix}${prevId}>`;
+              } else if (name === `${prefix}${nextId}`) {
+                (parentType.typeName as t.Identifier).name = `${prefix}${prevId}`;
+              }
+            }
+          }
+          return true;
+        }
+      } else {
+        // TODO: 未完成  兼容处理
+      }
+    } else {
+      if (prevProps) {
+        for (let props of prevProps) {
+          const type = props.typeAnnotation.typeAnnotation;
+          if (t.isTSTypeReference(type)) {
+            // 数组值需要变量名称，并且去掉prefix前缀
+            let name = (type.typeName as t.Identifier).name;
+            const reg = new RegExp("^Array<(" + prefix + ".*)>");
+            name = name.replace(reg, (match, p1) => p1).replace(new RegExp(prefix), '');
+            // 如果是Record<string, unknown>或者unknown表示最后一个了
+            if (!['Record<string, unknown>', 'unknown'].includes(name)) {
+              // 找到对应的变量声明
+              for (let [index, value] of body.entries()) {
+                const declaration = value.declarations[0];
+                if (declaration.id.name === name) {
+                  let isConsistent = this.deepTraverseral(body, prev, value);
+                  if (isConsistent) {
+                    // 父子一致，删除当前变量声明
+                    body.splice(index, 1);
+                  }
+                  break;
+                }
+              }
+            }
+          }
+        }
+      } else {
+        // 数组中存在基础类型
+        prevProps = prevInit.elements;
+        const tsTypeLiterals = prevProps.filter((props: any) => t.isTSTypeLiteral(props));
+        for (let tsTypeLiteral of tsTypeLiterals) {
+          const members = tsTypeLiteral.members;
+          for (let member of members) {
+            const type = member.typeAnnotation.typeAnnotation;
+            if (t.isTSTypeReference(type)) {
+              // 数组值需要变量名称，并且去掉prefix前缀
+              let name = (type.typeName as t.Identifier).name;
+              const reg = new RegExp("^Array<(" + prefix + ".*)>");
+              name = name.replace(reg, (match, p1) => p1).replace(new RegExp(prefix), '');
+              // 如果是Record<string, unknown>或者unknown表示最后一个了
+              if (!['Record<string, unknown>', 'unknown'].includes(name)) {
+                // 找到对应的变量声明
+                for (let [index, value] of body.entries()) {
+                  const declaration = value.declarations[0];
+                  if (declaration.id.name === name) {
+                    let isConsistent = this.deepTraverseral(body, prev, value);
+                    if (isConsistent) {
+                      // 父子一致，删除当前变量声明
+                      body.splice(index, 1);
+                    }
+                    break;
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
     }
   }
-
 }
 
