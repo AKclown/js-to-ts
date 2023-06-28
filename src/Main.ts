@@ -430,7 +430,10 @@ ${interfaceText.trim()}${content}
           path.get("value").traverse(_that.ObjectVisitor, state);
           state.parentName = originparentName;
 
-          // 生成一个新的变量(判断是否存在一样的数据)
+          // 自动检测对象Maps
+          const value = _that.detectMaps(path.node.value as t.ObjectExpression);
+          path.node.value = value;
+
           const variableExpression = generate(path.node.value).code;
           const isBlank = variableExpression === '{}';
           const reusableId = _that.reusableById(id, variableExpression);
@@ -485,8 +488,12 @@ ${interfaceText.trim()}${content}
     const _that = this;
     return {
       ObjectExpression(path: NodePath<t.ObjectExpression>, state: any = {}) {
-
         path.traverse(_that.ObjectVisitor, state);
+        
+        // 自动检测对象Maps
+        const value = _that.detectMaps(path.node);
+        path.node = value;
+
         path.replaceWith(
           t.tsTypeLiteral(
             path.node.properties as unknown as t.TSTypeElement[]
@@ -950,5 +957,36 @@ ${interfaceText.trim()}${content}
       }
     }
   }
-}
 
+  /** 判断属性的类型是否完全相同 */
+  detectMaps(values: t.ObjectExpression): t.ObjectExpression {
+    /**
+     * 自动检测Maps https://github.com/MariusAlch/vscode-json-to-ts/issues/14
+     * 需要满足如下条件：
+     * properties数量至少2个，且类型不是基础类型、所有属性的类型完成相同
+     */
+    const properties = values.properties || [];
+    let updateProps = properties as any as Array<t.TSPropertySignature>;
+    if (updateProps.length > 1) {
+      const [firstProps, ...restProps] = updateProps;
+      const firstTypeAnnotation = firstProps?.typeAnnotation?.typeAnnotation;
+      // 判断所有属性的类型是否一致
+      const isSame = restProps.every(props => {
+        const typeAnnotation = props?.typeAnnotation?.typeAnnotation;
+        return typeAnnotation
+          && t.isTSTypeReference(typeAnnotation)
+          && t.isTSTypeReference(firstTypeAnnotation)
+          && (typeAnnotation.typeName as t.Identifier).name === (firstTypeAnnotation.typeName as t.Identifier).name;
+      });
+
+      // 相同只保留一个props，并且将key改为[string]
+      if (isSame) {
+        const [firstProps, ...restProps] = updateProps;
+        (firstProps.key as t.Identifier).name = '[key:string]';
+        updateProps = [firstProps];
+      }
+    }
+    values.properties = updateProps as any as Array<t.ObjectProperty>;
+    return values;
+  }
+}
