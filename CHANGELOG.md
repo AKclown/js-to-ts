@@ -1,3 +1,32 @@
+### 0.5.0 (2023-06-28)
+1. 添加[Automatically detect maps](https://github.com/MariusAlch/vscode-json-to-ts/issues/14)
+```ts
+ {
+  "should_be_ts_map_not_an_interface": {
+    "key1": {
+      "a": 1,
+        "b": 2
+    },
+    "key2": {
+      "a": 3,
+      "b": 4
+    },
+  }
+}
+// 生成[key:string]: IKey1。 而不是key1:Ikey1、key2：Ikey2 (会进行自动检测)
+export interface IRootObject {
+    should_be_ts_map_not_an_interface: IShouldBeTsMapNotAnInterface;
+}
+export interface IShouldBeTsMapNotAnInterface {
+  [key:string]: IKey1;
+}
+export interface IKey1 {
+  a: number;
+  b: number;
+}
+```
+2. 优化自己引用自己代码逻辑
+
 ### 0.4.10 (2023-06-25)
 1. 变量名称首字母大写
 2. 数组对象合并可选判断
