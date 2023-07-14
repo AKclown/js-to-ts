@@ -319,9 +319,9 @@ const a = [
 const aa = {
   b: [
     {
-      c: 1,
+      c: '1',
       d: 1,
-      children: [
+      Node: [
         {
           c: 1,
           d: 1,
@@ -339,26 +339,7 @@ const aa = {
       c: 1,
       d: 1,
       a: 1,
-      children: [
-        {
-          c: '1',
-          d: 1,
-          a: 1,
-          Node: [
-            {
-              c: 2,
-              d: 2,
-              Node: [],
-            },
-          ],
-        },
-      ],
-    },
-    {
-      c: 1,
-      d: 1,
-      a: 1,
-      children: [
+      Node: [
         {
           c: '1',
           d: 1,
@@ -367,13 +348,13 @@ const aa = {
             {
               c: '2',
               d: 2,
-              a:1,
+              a: 1,
               Node: [],
             },
           ],
         },
       ],
-    }
+    },
   ],
 }
 
