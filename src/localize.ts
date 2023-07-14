@@ -13,8 +13,6 @@ export class Localize {
 
   private init() {
     try {
-      console.log(process.env.VSCODE_NLS_CONFIG, '-process.env.VSCODE_NLS_CONFIG-');
-      
       this.options = {
         ...this.options,
         ...JSON.parse(process.env.VSCODE_NLS_CONFIG || "{}")

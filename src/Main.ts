@@ -489,7 +489,7 @@ ${interfaceText.trim()}${content}
     return {
       ObjectExpression(path: NodePath<t.ObjectExpression>, state: any = {}) {
         path.traverse(_that.ObjectVisitor, state);
-        
+
         // 自动检测对象Maps
         const value = _that.detectMaps(path.node);
         path.node = value;
@@ -615,7 +615,6 @@ ${interfaceText.trim()}${content}
     const _that = this;
     return {
       Program(path: NodePath<t.Program>, state: any = {}) {
-        console.log('path: ', path.node);
         try {
           const body = path.node.body as t.VariableDeclaration[];
           _that.deepTraverseral(body, body[0], null);
@@ -724,6 +723,7 @@ ${interfaceText.trim()}${content}
         // 某个属性存在optional为true时，后续就不能把option改为false了
         const optional = typeMap.get(key)?.optional || member.optional;
         const typeAnnotations: Array<t.TSTypeAnnotation> = typeMap.get(key)?.type ?? [];
+
         typeMap.set(key, { optional, type: [...typeAnnotations, member.typeAnnotation?.typeAnnotation] as Array<t.TSTypeAnnotation> });
       }
     }
@@ -731,17 +731,26 @@ ${interfaceText.trim()}${content}
     const updateNode = [];
     if (typeMap.size) {
       for (let [key, value] of typeMap) {
-        let uniqueValue = this.deduplication(value.type);
-        let isUnion = !!(uniqueValue.length > 1);
+        // $ 对类型进行字符排序，例如string | number 与 number | string应该是等价的
+        let sortType = value.type.sort((a, b) => a.type.localeCompare(b.type));
+
+        let uniqueValue = this.deduplication(sortType);
+
+        // 存在两个及以上类型，需要将undefined改为?:，不是显示声明undefined
+        let excludeUndefined = uniqueValue.length > 1 ? (uniqueValue as  t.TSTypeAnnotation[]).filter((unique: t.TSTypeAnnotation) => unique.type !== 'TSUndefinedKeyword') : uniqueValue;
+
+        let isUnion = !!(excludeUndefined.length > 1);
         const node = t.tsPropertySignature(
           t.identifier(key),
-          t.tsTypeAnnotation(isUnion ? t.tsUnionType(uniqueValue as any as t.TSType[]) : uniqueValue[0] as any as t.TSType)
+          t.tsTypeAnnotation(isUnion ? t.tsUnionType(excludeUndefined as any as t.TSType[]) : excludeUndefined[0] as any as t.TSType)
         );
 
         // 属性是否为可选
         const optional = this.getConfig(CustomConfig.OPTIONAL) as boolean;
         // 如果配置的是false, 那么需要主动判断某个类型是否为可选类型
-        const isOptional = value.optional || value.type.length !== complexs.length;
+        const isOptional = value.optional
+          || excludeUndefined.length !== uniqueValue.length  // 联合类型中存在undefined
+          || value.type.length !== complexs.length;
         node.optional = optional || isOptional;
 
         updateNode.push(node);
