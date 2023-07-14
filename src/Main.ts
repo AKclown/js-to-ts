@@ -737,7 +737,7 @@ ${interfaceText.trim()}${content}
         let uniqueValue = this.deduplication(sortType);
 
         // 存在两个及以上类型，需要将undefined改为?:，不是显示声明undefined
-        let excludeUndefined = uniqueValue.length > 1 ? (uniqueValue as  t.TSTypeAnnotation[]).filter((unique: t.TSTypeAnnotation) => unique.type !== 'TSUndefinedKeyword') : uniqueValue;
+        let excludeUndefined = uniqueValue.length > 1 ? (uniqueValue as  t.TSTypeAnnotation[]).filter((unique: any) => unique.type !== 'TSUndefinedKeyword') : uniqueValue;
 
         let isUnion = !!(excludeUndefined.length > 1);
         const node = t.tsPropertySignature(
