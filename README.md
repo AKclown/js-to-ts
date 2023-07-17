@@ -1,7 +1,10 @@
 ## JS To TS[中文版](./README-ZH.md) `Optimizing`
 **Function 1:**&nbsp; Convert API return data to typescript type declaration.   
 PS: Automatically assign the type content to the clipboard  
-<img src="./images/apiToTs.jpg" width="90%" alt='apiToTs.jpg'>
+<img src="./images/apiToTs.jpg" width="90%" alt='apiToTs.jpg'>  
+Link request to support the `curl` format  
+ `chrome -> network -> copy -> Copy as cURL(bash)`
+<img src="./images/curlRequest.jpg" width="90%" alt='apiToTs.jpg'>
 
 **Function 2:**&nbsp; convert objects of JavaScript to typescript type declaration.  
 PS: Pressing `ctrl+shift+j` when nothing is selected will convert the clipboard content  

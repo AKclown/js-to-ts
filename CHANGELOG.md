@@ -1,3 +1,7 @@
+### 0.6.0 (2023-07-17)
+1. 支持`curl`方式请求。 
+`chrome -> network -> copy -> Copy as cURL(bash)`
+
 ### 0.5.1 (2023-07-14)
 
 1. 类型`{a: string | undefined }`改为`{a?: string }`
