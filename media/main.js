@@ -4,6 +4,21 @@
 
     let nonce = '';
 
+    document.querySelector('#method').addEventListener('click', (evt) => {
+        const method = evt.target.value;
+        if (method === 'CURL') {
+            const complex = document.querySelector('#complex-request');
+            const simple = document.querySelector('#simple-request');
+            complex.style.display = 'block';
+            simple.style.display = 'none';
+        } else {
+            const complex = document.querySelector('#complex-request');
+            const simple = document.querySelector('#simple-request');
+            complex.style.display = 'none';
+            simple.style.display = 'block';
+        }
+    });
+
     document.querySelector('#API-TO-TS').addEventListener('click', () => {
         getData();
     });
@@ -29,6 +44,7 @@
     function getData() {
         try {
             toggle('loading');
+            const curl = document.querySelector('#curl').value.trim() || '';
             const method = document.querySelector('#method').value;
             let serverUrl = document.querySelector('#server-url').value;
             let headers = document.querySelector('#headers').value.trim() || "{}";
@@ -36,8 +52,11 @@
             let params = document.querySelector('#params').value.trim() || "{}";
             params = jsonToObject(params);
 
-            if (serverUrl) {
-                if (['GET', 'DELETE'].includes(method)) {
+            if ((curl && method === 'CURL') || serverUrl) {
+                if (method === 'CURL') {
+                    const curl = document.querySelector('#curl').value.trim() || '';
+                    pushData(curl, method);
+                } else if (['GET', 'DELETE'].includes(method)) {
                     if (Object.keys(params).length) {
                         serverUrl = serverUrl + query(params);
                     }
@@ -57,7 +76,7 @@
                         .catch(error => printError(error));
                 }
             } else {
-                printError('ServerUrl cannot be empty');
+                printError(`${method === 'CURL' ? 'Curl Url' : 'ServerUrl'} cannot be empty`);
             }
         } catch (error) {
             printError(error);
@@ -86,8 +105,8 @@
         document.querySelector('#error').innerHTML = message;
     }
 
-    function pushData(data) {
-        vscode.postMessage({ type: 'pushData', value: data });
+    function pushData(data, method) {
+        vscode.postMessage({ type: 'pushData', value: data, method });
     }
 
     function pushNonce() {

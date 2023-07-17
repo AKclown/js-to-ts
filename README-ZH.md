@@ -2,7 +2,10 @@
 
 **功能一:**&nbsp; 将api返回数据转为typescript类型声明  
 PS: 自动将类型内容分配到剪贴板  
-<img src="./images/apiToTs.jpg" width="90%" alt='apiToTs.jpg'>
+<img src="./images/apiToTs.jpg" width="90%" alt='apiToTs.jpg'>   
+支持`curl`格式的链接请求   
+`chrome -> network -> copy -> Copy as cURL(bash)`
+<img src="./images/curlRequest.jpg" width="90%" alt='apiToTs.jpg'>
 
 **功能二:** &nbsp;将JavaScript对象转为typescript类型声明  
 PS: 未选择内容时按`ctrl+shift+j`会转换剪切板内容  

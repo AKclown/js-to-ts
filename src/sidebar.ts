@@ -1,6 +1,7 @@
 import * as vscode from "vscode";
 import { Main } from "./Main";
-import localize from'./localize';
+import localize from './localize';
+import { HttpStatus } from "./constant";
 
 export class ApiToTsViewProvider implements vscode.WebviewViewProvider {
   public static readonly viewType = "api.to.ts";
@@ -9,7 +10,7 @@ export class ApiToTsViewProvider implements vscode.WebviewViewProvider {
   constructor(
     private readonly _extensionUri: vscode.Uri,
     private readonly _main: Main
-  ) {}
+  ) { }
 
   public resolveWebviewView(
     webviewView: vscode.WebviewView,
@@ -33,9 +34,23 @@ export class ApiToTsViewProvider implements vscode.WebviewViewProvider {
       nonce
     );
 
-    webviewView.webview.onDidReceiveMessage((data) => {
+    webviewView.webview.onDidReceiveMessage(async (data) => {
       if (data.type === "pushData") {
-        const code = this._main.apiToTs(JSON.stringify(data.value));
+        let value = data.value;
+        if (data.method === 'CURL') {
+          // 判断类型是否为crul类型, 需要做请求
+          const result = await this._main.getCodeByCurl(value);
+          // 请求curl失败，直接结束即可
+          if (result.status === HttpStatus.FAILED) {
+            if (this._view) {
+              this._view.webview.postMessage({ type: "pullData", value: result.message });
+            }
+            return;
+          }
+          value = result.code;
+        }
+
+        const code = this._main.apiToTs(data.method === 'CURL' ? value : JSON.stringify(value));
         if (this._view) {
           this._view.webview.postMessage({ type: "pullData", value: code });
         }
@@ -86,6 +101,7 @@ export class ApiToTsViewProvider implements vscode.WebviewViewProvider {
       <body>
         <article>
           <select id="method">
+            <option value="CURL">CURL</option>
             <option value="GET">GET</option>
             <option value="POST">POST</option>
             <option value="PUT">PUT</option>
@@ -93,29 +109,42 @@ export class ApiToTsViewProvider implements vscode.WebviewViewProvider {
             <option value="DELETE">DELETE</option>
           </select>
           <div>
-            <p>${localize('js.to.ts.server.url')}</p>
-            <input
-              id="server-url"
-              type="text"
-              placeholder="${localize('js.to.ts.enter.your.server.url')}"
-            />
+            <div id="complex-request">
+              <p>CURL ADDRESS</p>
+              <textarea
+                name=""
+                id="curl"
+                placeholder="${localize('js.to.ts.enter.your.params')}"
+              ></textarea>
+            </div>
           </div>
-          <div>
-            <p>${localize('js.to.ts.headers')}</p>
-            <textarea
-              name=""
-              id="headers"
-              placeholder="${localize("js.to.ts.enter.your.headers")}"
-            ></textarea>
+          <div id="simple-request">
+            <div>
+              <p>${localize('js.to.ts.server.url')}</p>
+              <input
+                id="server-url"
+                type="text"
+                placeholder="${localize('js.to.ts.enter.your.server.url')}"
+              />
+            </div>
+            <div>
+              <p>${localize('js.to.ts.headers')}</p>
+              <textarea
+                name=""
+                id="headers"
+                placeholder="${localize("js.to.ts.enter.your.headers")}"
+              ></textarea>
+            </div>
+            <div>
+              <p>${localize('js.to.ts.params')}</p>
+              <textarea
+                name=""
+                id="params"
+                placeholder="${localize('js.to.ts.enter.your.params')}"
+              ></textarea>
+            </div>
           </div>
-          <div>
-            <p>${localize('js.to.ts.params')}</p>
-            <textarea
-              name=""
-              id="params"
-              placeholder="${localize('js.to.ts.enter.your.params')}"
-            ></textarea>
-          </div>
+       
           
           <div id = "types-container">
             <textarea id="types"></textarea>

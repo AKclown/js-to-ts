@@ -7,7 +7,12 @@ import { BaseClass } from "./BaseClass";
 import { IMain } from "./interface/Main.interface";
 import { Logger } from "./Logger";
 import { ErrorEnum } from "./interface/Logger.interface";
-import { CustomConfig, Icomments } from "./constant";
+import { CustomConfig, Icomments, HttpStatus } from "./constant";
+import * as iconv from 'iconv-lite';
+import curlParse = require('@bany/curl-to-json');
+
+import got = require('got');
+import { MimeUtility } from "./mimeUtility";
 
 export enum AstTypeEnum {
   identifier = "Identifier",
@@ -198,12 +203,15 @@ ${interfaceText.trim()}${content}
     }
   }
 
+
+
   // *********************
   // JS To TS
   // *********************
 
   async jsToTs() {
     try {
+
       const activeEditor = window.activeTextEditor;
       if (!activeEditor) {
         return;
@@ -737,7 +745,7 @@ ${interfaceText.trim()}${content}
         let uniqueValue = this.deduplication(sortType);
 
         // 存在两个及以上类型，需要将undefined改为?:，不是显示声明undefined
-        let excludeUndefined = uniqueValue.length > 1 ? (uniqueValue as  t.TSTypeAnnotation[]).filter((unique: any) => unique.type !== 'TSUndefinedKeyword') : uniqueValue;
+        let excludeUndefined = uniqueValue.length > 1 ? (uniqueValue as t.TSTypeAnnotation[]).filter((unique: any) => unique.type !== 'TSUndefinedKeyword') : uniqueValue;
 
         let isUnion = !!(excludeUndefined.length > 1);
         const node = t.tsPropertySignature(
@@ -997,5 +1005,35 @@ ${interfaceText.trim()}${content}
     }
     values.properties = updateProps as any as Array<t.ObjectProperty>;
     return values;
+  }
+
+  // *********************
+  // curl
+  // *********************
+
+  async getCodeByCurl(curl: string) {
+    try {
+      const curlHttp = curlParse(curl) as curlParse.ResultJSON & { headers: any };
+      const { url, ...options } = curlHttp;
+      options.headers = options.header;
+      delete options.header;
+      const response: any = await got(url, { ...options, timeout: '2000' } as got.GotOptions<string>);
+
+      const contentType = response.headers['content-type'];
+      let encoding: string | undefined;
+      if (contentType) {
+        encoding = MimeUtility.parse(contentType).charset;
+      }
+
+      if (!encoding) {
+        encoding = "utf8";
+      }
+
+      const bodyBuffer = response.body as Buffer;
+      let bodyString = bodyBuffer && iconv.encodingExists(encoding) ? iconv.decode(bodyBuffer, encoding) : bodyBuffer.toString();
+      return { code: bodyString, status: HttpStatus.SUCCEED };
+    } catch (error: any) {
+      return { message: error.message, status: HttpStatus.FAILED };
+    }
   }
 }

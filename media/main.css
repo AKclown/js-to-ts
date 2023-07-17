@@ -60,6 +60,16 @@ select option {
   background-color: var(--vscode-input-background);
 }
 
+/* complex-request */
+#complex-request {
+  display: block;
+}
+
+/* simple-request */
+#simple-request {
+  display: none;
+}
+
 /* textarea */
 textarea {
   height: 80px;
