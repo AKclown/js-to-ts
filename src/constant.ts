@@ -29,3 +29,8 @@ export enum Icomments {
   INNER_COMMENTS = "innerComments",
   TRAILING_COMMENTS = "trailingComments"
 }
+
+export enum HttpStatus {
+  SUCCEED = 'succeed',
+  FAILED = 'failed',
+}

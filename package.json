@@ -191,6 +191,11 @@
     "@babel/parser": "^7.21.4",
     "@babel/traverse": "^7.21.5",
     "@babel/types": "^7.20.7",
-    "fs-extra": "^11.1.1"
+    "@bany/curl-to-json": "^1.2.8",
+    "@types/got": "^9.6.0",
+    "fs-extra": "^11.1.1",
+    "got": "^9.6.0",
+    "iconv-lite": "^0.4.15",
+    "mime-types": "^2.1.35"
   }
 }
