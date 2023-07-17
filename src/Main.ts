@@ -9,7 +9,7 @@ import { Logger } from "./Logger";
 import { ErrorEnum } from "./interface/Logger.interface";
 import { CustomConfig, Icomments, HttpStatus } from "./constant";
 import * as iconv from 'iconv-lite';
-import curlParse = require('@bany/curl-to-json');
+const curlParse = require('curl-to-json-object');
 
 import got = require('got');
 import { MimeUtility } from "./mimeUtility";
@@ -1013,7 +1013,7 @@ ${interfaceText.trim()}${content}
 
   async getCodeByCurl(curl: string) {
     try {
-      const curlHttp = curlParse(curl) as curlParse.ResultJSON & { headers: any };
+      const curlHttp = curlParse(curl);
       const { url, ...options } = curlHttp;
       options.headers = options.header;
       delete options.header;
