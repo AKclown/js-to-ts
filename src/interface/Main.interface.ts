@@ -3,6 +3,7 @@
 // *********************
 
 import { AstTypeEnum } from "../Main";
+import { HttpStatus } from "../constant";
 
 export interface IMain {
   // *********************
@@ -22,7 +23,7 @@ export interface IMain {
   // API TO TS
   // *********************
 
-  apiToTs(code: string): string;
+  apiToTs(code: string): { value: string, status: HttpStatus };
 
   // *********************
   // JS To TS

@@ -43,16 +43,16 @@ export class ApiToTsViewProvider implements vscode.WebviewViewProvider {
           // 请求curl失败，直接结束即可
           if (result.status === HttpStatus.FAILED) {
             if (this._view) {
-              this._view.webview.postMessage({ type: "pullData", value: result.message });
+              this._view.webview.postMessage({ type: "pullData", value: result.message, status: HttpStatus.FAILED });
             }
             return;
           }
           value = result.code;
         }
 
-        const code = this._main.apiToTs(data.method === 'CURL' ? value : JSON.stringify(value));
+        const result = this._main.apiToTs(data.method === 'CURL' ? value : JSON.stringify(value));
         if (this._view) {
-          this._view.webview.postMessage({ type: "pullData", value: code });
+          this._view.webview.postMessage({ type: "pullData", value: result.value, status: result.status });
         }
       } else if (data.type === "pushNonce") {
         if (this._view) {

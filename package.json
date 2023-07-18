@@ -2,7 +2,7 @@
   "name": "swagger-to-typescript",
   "displayName": "JS To TS",
   "description": "Converts js/json/swagger/api to typescript type",
-  "version": "0.6.0",
+  "version": "0.6.1",
   "publisher": "AKclown",
   "engines": {
     "vscode": "^1.63.0"
@@ -192,7 +192,7 @@
     "@babel/traverse": "^7.21.5",
     "@babel/types": "^7.20.7",
     "@types/got": "^9.6.0",
-    "curl-to-json-object": "^0.0.3",
+    "curlconverter": "^3.21.0",
     "fs-extra": "^11.1.1",
     "got": "^9.6.0",
     "iconv-lite": "^0.4.15",
