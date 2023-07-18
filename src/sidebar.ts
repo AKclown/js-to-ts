@@ -110,11 +110,11 @@ export class ApiToTsViewProvider implements vscode.WebviewViewProvider {
           </select>
           <div>
             <div id="complex-request">
-              <p>CURL ADDRESS</p>
+              <p>${localize('js.to.ts.curl.url')}</p>
               <textarea
                 name=""
                 id="curl"
-                placeholder="${localize('js.to.ts.enter.your.params')}"
+                placeholder="${localize('js.to.ts.enter.your.curl.url')}"
               ></textarea>
             </div>
           </div>

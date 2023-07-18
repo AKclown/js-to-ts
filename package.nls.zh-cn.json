@@ -3,6 +3,8 @@
     "js.to.ts.swagger.to.typescript": "Swagger转换TS",
     "js.to.ts": "JS TO TS",
     "js.to.ts.api.to.ts": "API TO TS",
+    "js.to.ts.curl.url": "Curl地址",
+    "js.to.ts.enter.your.curl.url": "输入你的Curl地址",
     "js.to.ts.server.url": "服务器地址",
     "js.to.ts.enter.your.server.url": "输入你的服务器地址",
     "js.to.ts.headers": "标头",
