@@ -1,3 +1,7 @@
+### 0.6.1 (2023-07-18)
+1. 使用`curlconverter`替换原有curl转json的库
+2. curl错误逻辑
+3. curl文本国际化
 ### 0.6.0 (2023-07-17)
 1. 支持`curl`方式请求。 
 `chrome -> network -> copy -> Copy as cURL(bash)`

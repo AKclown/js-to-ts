@@ -30,6 +30,10 @@
     window.addEventListener('message', event => {
         const message = event.data; // The json data that the extension sent
         if ('pullData' === message.type) {
+            if (message.status === 'failed') {
+                printError(message.value);
+                return;
+            }
             toggle('types');
             document.querySelector('#types').value = message.value;
             copyCode(message.value);
