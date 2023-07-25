@@ -24,7 +24,7 @@ export class BaseClass implements IBaseClass {
   // *********************
 
   /** 获取到配置信息 */
-  getConfig(config: CustomConfig): boolean | string {
+  getConfig(config: CustomConfig): boolean | string | number {
     return workspace.getConfiguration().get(config) || false;
   }
 
@@ -59,7 +59,7 @@ export class BaseClass implements IBaseClass {
   getActiveTextByStartEnd(start: Position, end: Position): string {
     const editor = window.activeTextEditor;
     const range = new Range(start, end);
-    if(editor) {
+    if (editor) {
       return editor.document.getText(range);
     }
     return '';
