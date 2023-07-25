@@ -19,7 +19,8 @@ export enum CustomConfig {
   OPTIONAL = 'optional',
   COMMENTS = 'comments',
   PREFIX = 'prefix',
-  STRICT_MODE = 'strictMode'
+  STRICT_MODE = 'strictMode',
+  TIMEOUT = 'timeout'
 }
 
 export enum Icomments {

@@ -21,6 +21,7 @@
     "js.to.ts.configuration.innerComments.description":"Keep only innerComments",
     "js.to.ts.configuration.trailingComments.description":"Keep only trailingComments",
     "js.to.ts.configuration.prefix.description":"interface name prefix",
-    "js.to.ts.configuration.strict.mode.description":"Is it strict mode"
+    "js.to.ts.configuration.strict.mode.description":"Is it strict mode",
+    "js.to.ts.configuration.timeout.description":"http request timeout setting (ms)"
 
 }

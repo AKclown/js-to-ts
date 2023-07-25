@@ -1012,11 +1012,11 @@ ${interfaceText.trim()}${content}
 
   async getCodeByCurl(curl: string) {
     try {
+      const timeout = this.getConfig(CustomConfig.TIMEOUT) as number ?? 6000;
       const curlHttp = toJsonString(curl);
-      const { url, ...options } =JSON.parse(curlHttp) ;
-      // options.headers = options.header;
-      // delete options.header;
-      const response: any = await got(url, { ...options, timeout: 2000 } as got.GotOptions<string>);
+      const { url, ...options } = JSON.parse(curlHttp);
+
+      const response: any = await got(url, { ...options, timeout } as got.GotOptions<string>);
 
       const contentType = response.headers['content-type'];
       let encoding: string | undefined;
@@ -1032,6 +1032,7 @@ ${interfaceText.trim()}${content}
       let bodyString = bodyBuffer && iconv.encodingExists(encoding) ? iconv.decode(bodyBuffer, encoding) : bodyBuffer.toString();
       return { code: bodyString, status: HttpStatus.SUCCEED };
     } catch (error: any) {
+      console.error('error: ', error);
       return { message: error.message, status: HttpStatus.FAILED };
     }
   }
