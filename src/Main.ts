@@ -316,7 +316,7 @@ ${interfaceText.trim()}${content}
   /** 对象Visitor */
   get ObjectVisitor(): Visitor<t.Node> {
     const _that = this;
-    const prefix = this.getConfig(CustomConfig.PREFIX) as string;
+    const prefix = this.getConfig(CustomConfig.PREFIX) as string ?? '';
     return {
       ObjectProperty(path: NodePath<t.ObjectProperty>, state: any = {}) {
         const value = path.node.value;
@@ -636,7 +636,7 @@ ${interfaceText.trim()}${content}
   /** 变量处理 */
   get VariableVisitor(): Visitor<t.Node> {
     const _that = this;
-    const prefix = this.getConfig(CustomConfig.PREFIX) as string;
+    const prefix = this.getConfig(CustomConfig.PREFIX) as string ?? '';
     return {
       VariableDeclaration(path: NodePath<t.VariableDeclaration>) {
         // 是否追加export
@@ -877,7 +877,7 @@ ${interfaceText.trim()}${content}
   deepTraverseral(body: t.VariableDeclaration[], prev: t.VariableDeclaration, next: t.VariableDeclaration | null) {
     // TODO 联合类型复杂类型
     const strictMode = this.getConfig(CustomConfig.STRICT_MODE) as boolean;
-    const prefix = this.getConfig(CustomConfig.PREFIX) as string;
+    const prefix = this.getConfig(CustomConfig.PREFIX) as string ?? '';
 
     const prevDeclaration = prev.declarations[0];
     const prevInit = prevDeclaration.init;
@@ -946,7 +946,7 @@ ${interfaceText.trim()}${content}
 
   /** 变量属性 */
   traverseProps(body: t.VariableDeclaration[], prev: t.VariableDeclaration, prevProps: any) {
-    const prefix = this.getConfig(CustomConfig.PREFIX) as string;
+    const prefix = this.getConfig(CustomConfig.PREFIX) as string ?? '';
     // 判断next是否存在非基础类型
     for (let props of prevProps) {
       const type = props.typeAnnotation.typeAnnotation;

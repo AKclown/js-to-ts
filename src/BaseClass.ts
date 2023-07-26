@@ -24,8 +24,8 @@ export class BaseClass implements IBaseClass {
   // *********************
 
   /** 获取到配置信息 */
-  getConfig(config: CustomConfig): boolean | string | number {
-    return workspace.getConfiguration().get(config) || false;
+  getConfig(config: CustomConfig): boolean | string | number | undefined {
+    return workspace.getConfiguration().get(config);
   }
 
   // *********************
