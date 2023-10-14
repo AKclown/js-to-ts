@@ -17,9 +17,9 @@
     "js.to.ts.configuration.comments.description":"whether to keep comments",
     "js.to.ts.configuration.all.comments.description":"Keep all comments",
     "js.to.ts.configuration.none.comments.description":"Remove all comments",
-    "js.to.ts.configuration.leadingComments.description":"Keep only leadingComments",
-    "js.to.ts.configuration.innerComments.description":"Keep only innerComments",
-    "js.to.ts.configuration.trailingComments.description":"Keep only trailingComments",
+    "js.to.ts.configuration.leadingComments.description":"Keep only starting comments",
+    "js.to.ts.configuration.innerComments.description":"Keep only middle comments",
+    "js.to.ts.configuration.trailingComments.description":"Keep only ending comments",
     "js.to.ts.configuration.prefix.description":"interface name prefix",
     "js.to.ts.configuration.strict.mode.description":"Is it strict mode",
     "js.to.ts.configuration.timeout.description":"http request timeout setting (ms)"

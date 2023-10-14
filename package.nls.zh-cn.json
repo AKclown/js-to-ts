@@ -17,10 +17,10 @@
     "js.to.ts.configuration.comments.description":"是否保留注释",
     "js.to.ts.configuration.all.comments.description":"保留所有注释",
     "js.to.ts.configuration.none.comments.description":"移除所有注释",
-    "js.to.ts.configuration.leadingComments.description":"只保留leadingComments",
-    "js.to.ts.configuration.innerComments.description":"只保留innerComments",
-    "js.to.ts.configuration.trailingComments.description":"只保留trailingComments",
+    "js.to.ts.configuration.leadingComments.description":"只保留开始的注释",
+    "js.to.ts.configuration.innerComments.description":"只保留中间的注释",
+    "js.to.ts.configuration.trailingComments.description":"只保留结尾的注释",
     "js.to.ts.configuration.prefix.description":"接口名称前缀",
     "js.to.ts.configuration.strict.mode.description":"是否为严格模式",
-    "js.to.ts.configuration.timeout.description":"htpp请求超时设置(ms)"
+    "js.to.ts.configuration.timeout.description":"http请求超时设置(ms)"
 }
