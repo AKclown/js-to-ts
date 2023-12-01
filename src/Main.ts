@@ -27,37 +27,19 @@ export enum AstTypeEnum {
   arrayExpression = "ArrayExpression",
 }
 
-// TODO: Promise<T>
-enum TsParamsEnum {
-  tSTypeParameterInstantiation = "TSTypeParameterInstantiation",
-  tSAnyKeyword = "tSAnyKeyword",
-  tSNeverKeyword = "tSNeverKeyword",
-  tSNullKeyword = "TSNullKeyword",
-  tSNumberKeyword = "TSNumberKeyword",
-  tSStringKeyword = "TSStringKeyword",
-  tSSymbolKeyword = "TSSymbolKeyword",
-  tSUndefinedKeyword = "TSUndefinedKeyword",
-  tSUnknownKeyword = "TSUnknownKeyword",
-  tSVoidKeyword = "TSVoidKeyword",
-  tSUnionType = "TSUnionType",
-  tSIntersectionType = "TSIntersectionType",
-}
-
 export class Main extends BaseClass implements IMain {
-  private nameRegular = /([a-zA-Z]*)(«(?:[\w|«|»])+»)?(?:\s)*(\{)/m;
-  private contentRegular = /(\w+).*\(([^,]+).*\)((?:\:)([^,|}|\r|\n]+))?/g;
-  private blockRegular = /([^\{]*\{)([^\{\}]+)(\})/gm;
+  private curlRegular = /^curl.*$/gm;
 
   /** 数组的层级缓存数据 */
   private arrayLevelCache: Map<number, any>;
   /** 新增变量的缓存数据 */
-  private newVarible: Map<string, string>;
+  private newVariable: Map<string, string>;
   /** 变量名称的缓存 */
-  private varibleNames: Map<string, number>;
+  private variableNames: Map<string, number>;
   constructor() {
     super();
-    this.newVarible = new Map([]);
-    this.varibleNames = new Map([]);
+    this.newVariable = new Map([]);
+    this.variableNames = new Map([]);
     this.arrayLevelCache = new Map([]);
   }
 
@@ -117,33 +99,11 @@ export class Main extends BaseClass implements IMain {
   // *********************
 
   /** 执行转换 */
+  // TODO 待重构
   executeConverts() {
     try {
       const selectData = this.getSelectedInfo();
 
-      const editor = window.activeTextEditor;
-      if (!editor) {
-        return;
-      }
-      selectData.forEach((item) => {
-        const { text, range } = item;
-        // 将数据分为区域 ~{(第一块) {}(里面的内容第二块) }(第三块)
-        let blocks = null;
-        // 数据string
-        let formatText = "";
-
-        while ((blocks = this.blockRegular.exec(text))) {
-          const interfaceText = this.getInterface(blocks[1]);
-          const content = this.getContent(blocks[2]);
-          formatText = `${formatText}
-${interfaceText.trim()}${content}
-}
-  `;
-        }
-        editor.edit((editorContext) =>
-          editorContext.replace(range, formatText)
-        );
-      });
     } catch (error: any) {
       Logger.error({
         type: ErrorEnum.UNKNOWN_MISTAKE,
@@ -151,37 +111,6 @@ ${interfaceText.trim()}${content}
         items: ["OpenIssue"],
       });
     }
-  }
-
-  /** 获取interface模板 */
-  getInterface(text: string): string {
-    const names = text.match(this.nameRegular);
-    return names ? `export interface ${names[1]} ${names[3]}\n\t` : "";
-  }
-
-  /** 获取内容类型模板 */
-  getContent(text: string): string {
-    let contents = null;
-    let contentText = "";
-    while ((contents = this.contentRegular.exec(text))) {
-      let note = contents[4] ? `/** ${contents[4].trim()} */` : "";
-      const type = this.formatType(contents[2]);
-      contentText = `${contentText}
-  ${note}
-  ${contents[1].trim()}?:${type};`;
-    }
-    return contentText;
-  }
-
-  /** 类型格式化 */
-  formatType(type: string): string {
-    if (type === "integer") {
-      return "number";
-    } else if (type.search(/Array/g) !== -1) {
-      const mat = type.match(/(?:\[)(.*)(?:\])/);
-      return mat ? mat[1] : "unknown";
-    }
-    return type;
   }
 
   // *********************
@@ -202,15 +131,12 @@ ${interfaceText.trim()}${content}
     }
   }
 
-
-
   // *********************
   // JS To TS
   // *********************
 
   async jsToTs() {
     try {
-
       const activeEditor = window.activeTextEditor;
       if (!activeEditor) {
         return;
@@ -258,8 +184,8 @@ ${interfaceText.trim()}${content}
   // *********************
 
   parseCode(text: string): string {
-    this.newVarible.clear();
-    this.varibleNames.clear();
+    this.newVariable.clear();
+    this.variableNames.clear();
     const regular = /(var|let|const)\s*(\w+)(.*)/m;
     let updateText = text;
     let variableName = updateText.match(regular)?.[2];
@@ -616,7 +542,6 @@ ${interfaceText.trim()}${content}
     };
   }
 
-
   /** 数据是否可自己引用自己 */
   get ProgramVisitor(): any {
     const _that = this;
@@ -624,7 +549,7 @@ ${interfaceText.trim()}${content}
       Program(path: NodePath<t.Program>, state: any = {}) {
         try {
           const body = path.node.body as t.VariableDeclaration[];
-          _that.deepTraverseral(body, body[0], null);
+          _that.selfReference(body, body[0], null);
         } catch (error) {
           console.error('error: ', error);
           // $ 如果判断是否可自调用报错，则不影响原有逻辑
@@ -701,8 +626,17 @@ ${interfaceText.trim()}${content}
   async updateCodeByClipboard() {
     // 从粘贴板获取内容
     const code = await this.getCodeByClipboard();
-    const updateCode = this.parseCode(code);
-    this.openTemporaryFile(updateCode);
+    if (this.curlRegular.test(code)) {
+      const result = await this.getCodeByCurl(code);
+      if (result.status === HttpStatus.SUCCEED) {
+        const updateCode = this.parseCode(result.code!);
+        this.openTemporaryFile(updateCode);
+      }
+    } else {
+      const updateCode = this.parseCode(code);
+      this.openTemporaryFile(updateCode);
+    }
+
   }
 
   /** 数组对象类型整合 */
@@ -771,15 +705,15 @@ ${interfaceText.trim()}${content}
   /** 类型是否可复用 */
   reusableById(originId: string, code: string): string | undefined {
     // TODO:对比 - 策略可优化
-    if (this.newVarible.size) {
+    if (this.newVariable.size) {
       // 判断是否有可复用的类型
-      for (let [id, expression] of this.newVarible.entries()) {
+      for (let [id, expression] of this.newVariable.entries()) {
         if (expression === code) {
           return id;
         }
       }
     }
-    this.newVarible.set(originId, code);
+    this.newVariable.set(originId, code);
   }
 
   /** 去重 */
@@ -828,12 +762,12 @@ ${interfaceText.trim()}${content}
     let id = (key as t.Identifier)?.name ?? (key as t.StringLiteral)?.value ?? key;
     id = `${id.charAt(0).toUpperCase()}${id.slice(1)}`;
     let updateId = this.toCamelCase(id);
-    if (this.varibleNames.has(id)) {
-      const index = (this.varibleNames.get(id) ?? 0) + 1;
+    if (this.variableNames.has(id)) {
+      const index = (this.variableNames.get(id) ?? 0) + 1;
       updateId = `${id}${index}`;
-      this.varibleNames.set(id, index);
+      this.variableNames.set(id, index);
     } else {
-      this.varibleNames.set(id, 0);
+      this.variableNames.set(id, 0);
     }
     return updateId;
   }
@@ -874,7 +808,7 @@ ${interfaceText.trim()}${content}
   }
 
   /** 判断自引用数据 - 深度遍历 */
-  deepTraverseral(body: t.VariableDeclaration[], prev: t.VariableDeclaration, next: t.VariableDeclaration | null) {
+  selfReference(body: t.VariableDeclaration[], prev: t.VariableDeclaration, next: t.VariableDeclaration | null) {
     // TODO 联合类型复杂类型
     const strictMode = this.getConfig(CustomConfig.STRICT_MODE) as boolean;
     const prefix = this.getConfig(CustomConfig.PREFIX) as string ?? '';
@@ -961,7 +895,7 @@ ${interfaceText.trim()}${content}
           for (let [index, value] of body.entries()) {
             const declaration = value.declarations[0];
             if ((declaration.id as t.Identifier).name === name) {
-              let isConsistent = this.deepTraverseral(body, prev, value);
+              let isConsistent = this.selfReference(body, prev, value);
               if (isConsistent) {
                 // 父子一致，删除当前变量声明
                 body.splice(index, 1);
@@ -1032,7 +966,6 @@ ${interfaceText.trim()}${content}
       let bodyString = bodyBuffer && iconv.encodingExists(encoding) ? iconv.decode(bodyBuffer, encoding) : bodyBuffer.toString();
       return { code: bodyString, status: HttpStatus.SUCCEED };
     } catch (error: any) {
-      console.error('error: ', error);
       return { message: error.message, status: HttpStatus.FAILED };
     }
   }
