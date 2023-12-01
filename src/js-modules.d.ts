@@ -1,1 +1,1 @@
-declare module 'curlconverter'
+declare module 'curlconverter';
