@@ -297,10 +297,10 @@ export class Main extends BaseClass implements IMain {
               const hasCache = _that.arrayLevelCache.has(state.arrayLevel);
               const levelCacheData = _that.arrayLevelCache.get(state.arrayLevel);
 
-              const originparentName = state.parentName;
+              const originParentName = state.parentName;
               state.parentName = levelCacheData?.id ?? id;
               path.get("value").traverse(_that.ArrayVisitor, state);
-              state.parentName = originparentName;
+              state.parentName = originParentName;
 
               let elements = (path.node.value as t.ArrayExpression).elements;
               let updateElements: t.ArrayExpression['elements'] = [];
@@ -358,10 +358,10 @@ export class Main extends BaseClass implements IMain {
           path.skip();
         } else if (t.isObjectExpression(value)) {
           const id = _that.getID(key);
-          const originparentName = state.parentName;
+          const originParentName = state.parentName;
           state.parentName = id;
           path.get("value").traverse(_that.ObjectVisitor, state);
-          state.parentName = originparentName;
+          state.parentName = originParentName;
 
           // 自动检测对象Maps
           const value = _that.detectMaps(path.node.value as t.ObjectExpression);
@@ -383,8 +383,8 @@ export class Main extends BaseClass implements IMain {
             (programNode.node as t.Program).body.splice(1, 0, variable);
           }
 
-          const prototyName = isBlank ? 'Record<string, unknown>' : `${prefix}${reusableId ?? id}`;
-          typeAnnotation = t.tsTypeReference(t.identifier(prototyName));
+          const prototypeName = isBlank ? 'Record<string, unknown>' : `${prefix}${reusableId ?? id}`;
+          typeAnnotation = t.tsTypeReference(t.identifier(prototypeName));
 
           path.skip();
         }
@@ -647,18 +647,18 @@ export class Main extends BaseClass implements IMain {
     // 基础类型
     const basics: Array<any> = [];
     // 复杂类型
-    const complexs: Array<any> = [];
+    const complexes: Array<any> = [];
     elements.forEach(element => {
       if (t.isTSTypeLiteral(element)) {
-        complexs.push(element);
+        complexes.push(element);
       } else {
         basics.push(element);
       }
     });
 
-    if (complexs.length < 2) { return this.deduplication(elements); }
+    if (complexes.length < 2) { return this.deduplication(elements); }
 
-    for (let complex of complexs) {
+    for (let complex of complexes) {
       for (let member of complex!.members) {
         const key = generate((member as t.TSPropertySignature).key).code;
         // 某个属性存在optional为true时，后续就不能把option改为false了
@@ -691,7 +691,7 @@ export class Main extends BaseClass implements IMain {
         // 如果配置的是false, 那么需要主动判断某个类型是否为可选类型
         const isOptional = value.optional
           || excludeUndefined.length !== uniqueValue.length  // 联合类型中存在undefined
-          || value.type.length !== complexs.length;
+          || value.type.length !== complexes.length;
         node.optional = optional || isOptional;
 
         updateNode.push(node);
