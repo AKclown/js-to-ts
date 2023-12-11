@@ -100,7 +100,7 @@ export class Main extends BaseClass implements IMain {
 
   /** 执行转换 */
   // TODO 待重构
-  executeConverts() {
+  swaggerToTs(code: string, path: string) {
     try {
       const selectData = this.getSelectedInfo();
 

@@ -12,7 +12,7 @@ export function activate(context: vscode.ExtensionContext) {
     const mainInstant = new Main();
     const defaultDisposable = commands.registerCommand(
       COMMANDS.SWAGGER_TO_TYPESCRIPT_CONVERT,
-      mainInstant.executeConverts,
+      mainInstant.swaggerToTs,
       mainInstant
     );
 

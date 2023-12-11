@@ -37,8 +37,9 @@ export class ApiToTsViewProvider implements vscode.WebviewViewProvider {
     webviewView.webview.onDidReceiveMessage(async (data) => {
       if (data.type === "pushData") {
         let value = data.value;
-        if (data.method === 'CURL') {
-          // 判断类型是否为crul类型, 需要做请求
+        const { method, path } = data.extras;
+        if (method === 'CURL') {
+          // 判断类型是否为curl类型, 需要做请求
           const result = await this._main.getCodeByCurl(value);
           // 请求curl失败，直接结束即可
           if (result.status === HttpStatus.FAILED) {
@@ -48,6 +49,9 @@ export class ApiToTsViewProvider implements vscode.WebviewViewProvider {
             return;
           }
           value = result.code;
+        } else if (method === 'SWAGGER') {
+          const result = this._main.swaggerToTs(JSON.stringify(value), path);
+
         }
 
         const result = this._main.apiToTs(data.method === 'CURL' ? value : JSON.stringify(value));
@@ -102,19 +106,34 @@ export class ApiToTsViewProvider implements vscode.WebviewViewProvider {
         <article>
           <select id="method">
             <option value="CURL">CURL</option>
+            <option value="SWAGGER">SWAGGER</option>
             <option value="GET">GET</option>
             <option value="POST">POST</option>
             <option value="PUT">PUT</option>
             <option value="PATCH">HEAD</option>
             <option value="DELETE">DELETE</option>
           </select>
-          <div>
-            <div id="complex-request">
-              <p>${localize('js.to.ts.curl.url')}</p>
+          <div id="complex-request">
+            <p>${localize('js.to.ts.curl.url')}</p>
+            <textarea
+              name=""
+              id="curl"
+              placeholder="${localize('js.to.ts.enter.your.curl.url')}"
+            ></textarea>
+          </div>
+          <div id="swagger-request">
+            <p>Swagger URL</p>
+            <textarea
+              name=""
+              id="swagger"
+              placeholder="swagger"
+            ></textarea>
+            <div>
+              <p>路由地址</p>
               <textarea
                 name=""
-                id="curl"
-                placeholder="${localize('js.to.ts.enter.your.curl.url')}"
+                id="swagger-path"
+                placeholder="path"
               ></textarea>
             </div>
           </div>

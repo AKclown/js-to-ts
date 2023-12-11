@@ -1,3 +1,4 @@
+// 跨域: https://stackoverflow.com/questions/55841688/vscode-cross-origin-request-inside-webview
 (function () {
 
     const vscode = acquireVsCodeApi();
@@ -6,15 +7,21 @@
 
     document.querySelector('#method').addEventListener('click', (evt) => {
         const method = evt.target.value;
+        const complex = document.querySelector('#complex-request');
+        const swagger = document.querySelector('#swagger-request');
+        const simple = document.querySelector('#simple-request');
+
         if (method === 'CURL') {
-            const complex = document.querySelector('#complex-request');
-            const simple = document.querySelector('#simple-request');
             complex.style.display = 'block';
+            swagger.style.display = 'none';
+            simple.style.display = 'none';
+        } else if (method === 'SWAGGER') {
+            complex.style.display = 'none';
+            swagger.style.display = 'block';
             simple.style.display = 'none';
         } else {
-            const complex = document.querySelector('#complex-request');
-            const simple = document.querySelector('#simple-request');
             complex.style.display = 'none';
+            swagger.style.display = 'none';
             simple.style.display = 'block';
         }
     });
@@ -49,6 +56,8 @@
         try {
             toggle('loading');
             const curl = document.querySelector('#curl').value.trim() || '';
+            const swagger = document.querySelector('#swagger').value.trim() || '';
+            const swaggerPath = document.querySelector('#swagger-path').value.trim() || '';
             const method = document.querySelector('#method').value;
             let serverUrl = document.querySelector('#server-url').value;
             let headers = document.querySelector('#headers').value.trim() || "{}";
@@ -56,10 +65,15 @@
             let params = document.querySelector('#params').value.trim() || "{}";
             params = jsonToObject(params);
 
-            if ((curl && method === 'CURL') || serverUrl) {
+            if (curl || swagger || serverUrl) {
                 if (method === 'CURL') {
-                    const curl = document.querySelector('#curl').value.trim() || '';
-                    pushData(curl, method);
+                    pushData(curl, { method });
+                } else if (method === 'SWAGGER') {
+                    fetch(`${swagger}`, {
+                        method: 'get',
+                    }).then(response => response.json())
+                        .then(data => pushData(data, { method, path: swaggerPath }))
+                        .catch(error => printError(error));
                 } else if (['GET', 'DELETE'].includes(method)) {
                     if (Object.keys(params).length) {
                         serverUrl = serverUrl + query(params);
@@ -109,8 +123,8 @@
         document.querySelector('#error').innerHTML = message;
     }
 
-    function pushData(data, method) {
-        vscode.postMessage({ type: 'pushData', value: data, method });
+    function pushData(data, extras = {}) {
+        vscode.postMessage({ type: 'pushData', value: data, extras });
     }
 
     function pushNonce() {

@@ -11,3 +11,4 @@ images/**.jpg
 **/*.ts
 *.md
 src/utils.ts
+node_modules/**

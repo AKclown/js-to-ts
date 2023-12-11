@@ -60,12 +60,14 @@ select option {
   background-color: var(--vscode-input-background);
 }
 
-/* complex-request */
 #complex-request {
   display: block;
 }
 
-/* simple-request */
+#swagger-request {
+  display: none;
+}
+
 #simple-request {
   display: none;
 }
