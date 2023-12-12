@@ -16,7 +16,7 @@ import {
   IBaseClass,
   ReturnSelectedInfo,
 } from "./interface/BaseClass.interface";
-import { COMMANDS, CustomConfig, Extra } from "./constant";
+import { COMMANDS, CUSTOM_CONFIG, EXTRA } from "./constant";
 
 export class BaseClass implements IBaseClass {
   // *********************
@@ -24,7 +24,7 @@ export class BaseClass implements IBaseClass {
   // *********************
 
   /** 获取到配置信息 */
-  getConfig(config: CustomConfig): boolean | string | number | undefined {
+  getConfig(config: CUSTOM_CONFIG): boolean | string | number | undefined {
     return workspace.getConfiguration().get(config);
   }
 
@@ -77,7 +77,7 @@ export class BaseClass implements IBaseClass {
 
   /** 打开临时文件 */
   openTemporaryFile(code: string): void {
-    const tmpFilePath = path.join(os.tmpdir(), Extra.TEMPORARY_FILE_NAME);
+    const tmpFilePath = path.join(os.tmpdir(), EXTRA.TEMPORARY_FILE_NAME);
     const tmpFileUri = Uri.file(tmpFilePath);
     fs.writeFileSync(tmpFilePath, code);
     commands.executeCommand(

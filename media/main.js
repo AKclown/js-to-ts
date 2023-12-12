@@ -67,31 +67,40 @@
 
             if (curl || swagger || serverUrl) {
                 if (method === 'CURL') {
-                    pushData(curl, { method });
+                    pushData({ url: curl, method });
                 } else if (method === 'SWAGGER') {
-                    fetch(`${swagger}`, {
-                        method: 'get',
-                    }).then(response => response.json())
-                        .then(data => pushData(data, { method, path: swaggerPath }))
-                        .catch(error => printError(error));
+                    const options = {
+                        path: swaggerPath
+                    };
+                    pushData({
+                        method,
+                        options,
+                        url: swagger
+                    });
                 } else if (['GET', 'DELETE'].includes(method)) {
                     if (Object.keys(params).length) {
                         serverUrl = serverUrl + query(params);
                     }
-                    fetch(serverUrl, {
+                    const options = {
                         method,
                         headers,
-                    }).then(response => response.json())
-                        .then(data => pushData(data))
-                        .catch(error => printError(error));
+                    };
+                    pushData({
+                        method,
+                        options,
+                        url: serverUrl,
+                    });
                 } else {
-                    fetch(serverUrl, {
+                    const options = {
                         method,
                         headers,
                         body: JSON.stringify(params)
-                    }).then(response => response.json())
-                        .then(data => pushData(data))
-                        .catch(error => printError(error));
+                    };
+                    pushData({
+                        method,
+                        options,
+                        url: serverUrl,
+                    });
                 }
             } else {
                 printError(`${method === 'CURL' ? 'Curl Url' : 'ServerUrl'} cannot be empty`);
@@ -123,8 +132,8 @@
         document.querySelector('#error').innerHTML = message;
     }
 
-    function pushData(data, extras = {}) {
-        vscode.postMessage({ type: 'pushData', value: data, extras });
+    function pushData(data) {
+        vscode.postMessage({ type: 'pushData', payload: data });
     }
 
     function pushNonce() {
