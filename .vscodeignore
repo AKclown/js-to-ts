@@ -10,5 +10,3 @@ images/**.jpg
 **/*.map
 **/*.ts
 *.md
-src/utils.ts
-node_modules/**
