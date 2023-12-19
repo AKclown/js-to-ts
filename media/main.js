@@ -1,3 +1,4 @@
+// 跨域: https://stackoverflow.com/questions/55841688/vscode-cross-origin-request-inside-webview
 (function () {
 
     const vscode = acquireVsCodeApi();
@@ -6,15 +7,21 @@
 
     document.querySelector('#method').addEventListener('click', (evt) => {
         const method = evt.target.value;
+        const complex = document.querySelector('#complex-request');
+        const swagger = document.querySelector('#swagger-request');
+        const simple = document.querySelector('#simple-request');
+
         if (method === 'CURL') {
-            const complex = document.querySelector('#complex-request');
-            const simple = document.querySelector('#simple-request');
             complex.style.display = 'block';
+            swagger.style.display = 'none';
+            simple.style.display = 'none';
+        } else if (method === 'SWAGGER') {
+            complex.style.display = 'none';
+            swagger.style.display = 'block';
             simple.style.display = 'none';
         } else {
-            const complex = document.querySelector('#complex-request');
-            const simple = document.querySelector('#simple-request');
             complex.style.display = 'none';
+            swagger.style.display = 'none';
             simple.style.display = 'block';
         }
     });
@@ -30,15 +37,21 @@
     window.addEventListener('message', event => {
         const message = event.data; // The json data that the extension sent
         if ('pullData' === message.type) {
-            if (message.status === 'failed') {
-                printError(message.value);
+            const { status, value, hidden } = message.payload;
+            if (status === 'failed') {
+                printError(value);
                 return;
             }
-            toggle('types');
-            document.querySelector('#types').value = message.value;
-            copyCode(message.value);
+            if (hidden) {
+                toggle('types');
+                document.querySelector('#types').value = value;
+                copyCode(message.value);
+            } else {
+                toggle('none');
+            }
         } else if ('pullNonce' === message.type) {
-            nonce = message.value;
+            const { value } = message.payload;
+            nonce = value;
         }
     });
 
@@ -49,6 +62,8 @@
         try {
             toggle('loading');
             const curl = document.querySelector('#curl').value.trim() || '';
+            const swagger = document.querySelector('#swagger').value.trim() || '';
+            // const swaggerPath = document.querySelector('#swagger-path').value.trim() || '';
             const method = document.querySelector('#method').value;
             let serverUrl = document.querySelector('#server-url').value;
             let headers = document.querySelector('#headers').value.trim() || "{}";
@@ -56,28 +71,43 @@
             let params = document.querySelector('#params').value.trim() || "{}";
             params = jsonToObject(params);
 
-            if ((curl && method === 'CURL') || serverUrl) {
+            if (curl || swagger || serverUrl) {
                 if (method === 'CURL') {
-                    const curl = document.querySelector('#curl').value.trim() || '';
-                    pushData(curl, method);
+                    console.log('method: ', method);
+                    pushData({ url: curl, method });
+                } else if (method === 'SWAGGER') {
+                    const options = {
+                        // path: swaggerPath
+                    };
+                    pushData({
+                        method,
+                        options,
+                        url: swagger
+                    });
                 } else if (['GET', 'DELETE'].includes(method)) {
                     if (Object.keys(params).length) {
                         serverUrl = serverUrl + query(params);
                     }
-                    fetch(serverUrl, {
+                    const options = {
                         method,
                         headers,
-                    }).then(response => response.json())
-                        .then(data => pushData(data))
-                        .catch(error => printError(error));
+                    };
+                    pushData({
+                        method,
+                        options,
+                        url: serverUrl,
+                    });
                 } else {
-                    fetch(serverUrl, {
+                    const options = {
                         method,
                         headers,
                         body: JSON.stringify(params)
-                    }).then(response => response.json())
-                        .then(data => pushData(data))
-                        .catch(error => printError(error));
+                    };
+                    pushData({
+                        method,
+                        options,
+                        url: serverUrl,
+                    });
                 }
             } else {
                 printError(`${method === 'CURL' ? 'Curl Url' : 'ServerUrl'} cannot be empty`);
@@ -109,8 +139,8 @@
         document.querySelector('#error').innerHTML = message;
     }
 
-    function pushData(data, method) {
-        vscode.postMessage({ type: 'pushData', value: data, method });
+    function pushData(data) {
+        vscode.postMessage({ type: 'pushData', payload: data });
     }
 
     function pushNonce() {

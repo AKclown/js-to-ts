@@ -1,7 +1,8 @@
 import * as vscode from "vscode";
 import { Main } from "./Main";
 import localize from './localize';
-import { HttpStatus } from "./constant";
+import { CUSTOM_CONFIG, HTTP_MODE, HTTP_STATUS } from "./constant";
+import got = require("got");
 
 export class ApiToTsViewProvider implements vscode.WebviewViewProvider {
   public static readonly viewType = "api.to.ts";
@@ -35,28 +36,43 @@ export class ApiToTsViewProvider implements vscode.WebviewViewProvider {
     );
 
     webviewView.webview.onDidReceiveMessage(async (data) => {
-      if (data.type === "pushData") {
-        let value = data.value;
-        if (data.method === 'CURL') {
-          // 判断类型是否为crul类型, 需要做请求
-          const result = await this._main.getCodeByCurl(value);
-          // 请求curl失败，直接结束即可
-          if (result.status === HttpStatus.FAILED) {
-            if (this._view) {
-              this._view.webview.postMessage({ type: "pullData", value: result.message, status: HttpStatus.FAILED });
-            }
-            return;
+      const { type, payload } = data;
+
+      if (type === "pushData") {
+        const { url, method, options } = payload;
+        let gotOption = options;
+        let mode = HTTP_MODE.NORMAL;
+        // 处理参数
+        if (method === 'SWAGGER') {
+          gotOption = { method: 'get' };
+        } else if (method === 'CURL') {
+          gotOption = {};
+          mode = HTTP_MODE.CURL;
+        }
+        const result = await this._main.getCodeByGot(mode, { url, options: gotOption });
+        const { status, message, code } = result;
+        // 请求失败结束
+        if (status === HTTP_STATUS.FAILED) {
+          if (this._view) {
+            this._view.webview.postMessage({ type: "pullData", payload: { value: message, status: HTTP_STATUS.FAILED } });
           }
-          value = result.code;
+          return;
         }
 
-        const result = this._main.apiToTs(data.method === 'CURL' ? value : JSON.stringify(value));
+        const TsResult = method === 'SWAGGER' ?
+          this._main.swaggerToTs(code!)! :
+          this._main.apiToTs(code!);
         if (this._view) {
-          this._view.webview.postMessage({ type: "pullData", value: result.value, status: result.status });
+          // 是否打开临时文件展示内容
+          const openTemporaryFile = this._main.getConfig(
+            CUSTOM_CONFIG.OPEN_TEMPORARY_FILE
+          ) as boolean;
+
+          this._view.webview.postMessage({ type: "pullData", payload: { value: TsResult.value, status: TsResult.status, hidden: !openTemporaryFile } });
         }
-      } else if (data.type === "pushNonce") {
+      } else if (type === "pushNonce") {
         if (this._view) {
-          this._view.webview.postMessage({ type: "pullNonce", value: nonce });
+          this._view.webview.postMessage({ type: "pullNonce", payload: { value: nonce } });
         }
       }
     });
@@ -102,21 +118,28 @@ export class ApiToTsViewProvider implements vscode.WebviewViewProvider {
         <article>
           <select id="method">
             <option value="CURL">CURL</option>
+            <option value="SWAGGER">SWAGGER</option>
             <option value="GET">GET</option>
             <option value="POST">POST</option>
             <option value="PUT">PUT</option>
             <option value="PATCH">HEAD</option>
             <option value="DELETE">DELETE</option>
           </select>
-          <div>
-            <div id="complex-request">
-              <p>${localize('js.to.ts.curl.url')}</p>
-              <textarea
-                name=""
-                id="curl"
-                placeholder="${localize('js.to.ts.enter.your.curl.url')}"
-              ></textarea>
-            </div>
+          <div id="complex-request">
+            <p>${localize('js.to.ts.curl.url')}</p>
+            <textarea
+              name=""
+              id="curl"
+              placeholder="${localize('js.to.ts.enter.your.curl.url')}"
+            ></textarea>
+          </div>
+          <div id="swagger-request">
+            <p>${localize('js.to.ts.swagger.url')}</p>
+            <textarea
+              name=""
+              id="swagger"
+              placeholder="${localize('js.to.ts.enter.your.swagger.url')}"
+            ></textarea>
           </div>
           <div id="simple-request">
             <div>

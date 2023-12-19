@@ -11,7 +11,10 @@ PS: Pressing `ctrl+shift+j` when nothing is selected will convert the clipboard 
 <img src="./images/jsToTs.jpg" width="90%" alt='jsToTs.jpg'>
 
 **Function 3:**&nbsp; a plug-in that converts the type provided by the Swagger document to the typescript type automatically.  
-<img src="./images/template.jpg" width="90%" alt='template.jpg'>  
+
+***HINT:*** To generate and download a Swagger JSON file, navigate to `http://localhost:3000/api-json` (assuming that your Swagger documentation is available under `http://localhost:3000/api`).
+
+<img src="./images/swaggerToTs.jpg" width="90%" alt='swaggerToTs.jpg'>
 
 ---  
 
@@ -21,7 +24,6 @@ PS: Pressing `ctrl+shift+j` when nothing is selected will convert the clipboard 
 --- 
 
 ## Usage demo
-<img src="./images/apiToTs.gif" width="90%" alt='apiToTs.gif'>
 <img src="./images/jsToTs.gif" width="90%" alt='jsToTs.gif'>
 
 --- 

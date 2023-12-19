@@ -1,7 +1,3 @@
-// *********************
-// commands
-// *********************
-
 export enum COMMANDS {
   VSCODE_OPEN = "vscode.open",
   SWAGGER_TO_TYPESCRIPT_CONVERT = "swagger.to.typescript.convert",
@@ -9,11 +5,11 @@ export enum COMMANDS {
   SWAGGER_TO_TYPESCRIPT_ADD_COMMENTS = "swagger.to.typescript.add.comments",
 }
 
-export enum Extra {
+export enum EXTRA {
   TEMPORARY_FILE_NAME = "js-to-ts.ts",
 }
 
-export enum CustomConfig {
+export enum CUSTOM_CONFIG {
   OPEN_TEMPORARY_FILE = 'openTemporaryFile',
   EXPORT_TYPE = 'exportType',
   OPTIONAL = 'optional',
@@ -23,7 +19,7 @@ export enum CustomConfig {
   TIMEOUT = 'timeout'
 }
 
-export enum Icomments {
+export enum COMMENTS_TYPES {
   ALL = "all",
   NONE = "none",
   LEADING_COMMENTS = "leadingComments",
@@ -31,7 +27,14 @@ export enum Icomments {
   TRAILING_COMMENTS = "trailingComments"
 }
 
-export enum HttpStatus {
+export enum HTTP_STATUS {
   SUCCEED = 'succeed',
   FAILED = 'failed',
 }
+
+export enum HTTP_MODE {
+  CURL = 'curl',
+  NORMAL = 'normal'
+}
+
+

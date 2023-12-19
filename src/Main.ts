@@ -4,28 +4,14 @@ import generate from "@babel/generator";
 import traverse, { NodePath, Visitor } from "@babel/traverse";
 import { ParseResult, parse } from "@babel/parser";
 import { BaseClass } from "./BaseClass";
-import { IMain } from "./interface/Main.interface";
+import { AST_TYPES, IGotOptions, IMain } from "./interface/Main.interface";
 import { Logger } from "./Logger";
 import { ErrorEnum } from "./interface/Logger.interface";
-import { CustomConfig, Icomments, HttpStatus } from "./constant";
+import { CUSTOM_CONFIG, COMMENTS_TYPES, HTTP_STATUS, HTTP_MODE } from "./constant";
 import * as iconv from 'iconv-lite';
 import { toJsonString } from 'curlconverter';
 import got = require('got');
 import { MimeUtility } from "./mimeUtility";
-
-export enum AstTypeEnum {
-  identifier = "Identifier",
-  stringLiteral = "StringLiteral",
-  numericLiteral = "NumericLiteral",
-  booleanLiteral = "BooleanLiteral",
-  nullLiteral = "NullLiteral",
-  templateLiteral = "TemplateLiteral",
-  bigintLiteral = "BigintLiteral",
-  newExpression = "NewExpression",
-  callExpression = "CallExpression",
-  objectExpression = "ObjectExpression",
-  arrayExpression = "ArrayExpression",
-}
 
 export class Main extends BaseClass implements IMain {
   private curlRegular = /^curl.*$/gm;
@@ -99,18 +85,200 @@ export class Main extends BaseClass implements IMain {
   // *********************
 
   /** 执行转换 */
-  // TODO 待重构
-  executeConverts() {
+  // TODO 未完成，路径、数组
+  swaggerToTs(code: string) {
     try {
-      const selectData = this.getSelectedInfo();
+      // 是否打开临时文件展示内容
+      const openTemporaryFile = this.getConfig(
+        CUSTOM_CONFIG.OPEN_TEMPORARY_FILE
+      ) as boolean;
 
+      if (code) {
+        const tsCode = this.parseSwaggerCode(code);
+        openTemporaryFile && this.openTemporaryFile(tsCode);
+        return { value: tsCode, status: HTTP_STATUS.SUCCEED };
+      } else {
+        const activeEditor = window.activeTextEditor;
+        if (!activeEditor) {
+          return;
+        }
+        const selectData = this.getSelectedInfo();
+        if (selectData.length && !code) {
+          selectData.forEach(async (item) => {
+            const { text, range } = item;
+            const tsCode = this.parseSwaggerCode(text);
+
+            if (openTemporaryFile) {
+              this.openTemporaryFile(tsCode);
+            } else {
+              activeEditor.edit((editorContext) =>
+                editorContext.replace(range, tsCode)
+              );
+            }
+          });
+        }
+      }
     } catch (error: any) {
       Logger.error({
         type: ErrorEnum.UNKNOWN_MISTAKE,
         data: error.message,
-        items: ["OpenIssue"],
+        items: ["issue"],
       });
+      return { value: error.message, status: HTTP_STATUS.FAILED };
     }
+  }
+
+  parseSwaggerCode(text: string) {
+    const updateText = `const RootObject = ${text}`;
+    const ast: ParseResult<t.File> = parse(updateText);
+    this.traverseSwaggerCode(ast);
+    const code = generate(ast).code;
+    return code;
+  }
+
+  traverseSwaggerCode(ast: ParseResult<t.File>) {
+    const prefix = this.getConfig(CUSTOM_CONFIG.PREFIX) as string ?? '';
+    // 属性是否为可选
+    const optional = this.getConfig(CUSTOM_CONFIG.OPTIONAL) as boolean;
+    // 是否追加export
+    const exportType = this.getConfig(CUSTOM_CONFIG.EXPORT_TYPE) as boolean;
+
+    traverse(ast, {
+      ObjectProperty(path: NodePath<t.ObjectProperty>) {
+        let key = path.node.key as t.StringLiteral;
+        if (key.value === 'schemas') {
+          const state = { level: 0 };
+          path.get("value").traverse({
+            enter() {
+              state.level++;
+            },
+            ObjectProperty(path: NodePath<t.ObjectProperty>) {
+              const attributeKey = path.node.key as t.StringLiteral;
+              const attributeName = attributeKey.value;
+              // 有可能类型为{key:number} => 对应是schema为 {type:{key:number}} 以及不与properties平级的type属性
+              if (['type', '$ref'].includes(attributeName) && state.level === 7) {
+                let typeAnnotation: t.TSType = t.tsUnknownKeyword();
+                const type = JSON.parse(generate(path.node.value).code);
+                if (attributeName === 'type') {
+                  if (type === 'number') {
+                    typeAnnotation = t.tsNumberKeyword();
+                  } else if (type === 'string') {
+                    typeAnnotation = t.tsStringKeyword();
+                    // 兄弟节点是否存在"format": "date-time"，表示是否为Date类型
+                    const prevNodes = path.getAllPrevSiblings();
+                    for (let p of prevNodes) {
+                      if (((p.node as t.ObjectProperty).key as t.StringLiteral).value === 'format') {
+                        const code = JSON.parse(generate(path.node.value).code);
+                        if (code === 'date-time') {
+                          typeAnnotation = t.tsTypeReference(t.identifier('Date'));
+                        }
+                        break;
+                      }
+                    }
+
+                    // 兄弟节点是否存在"enum": 表示是否为枚举类型
+                    const nextNodes = path.getAllNextSiblings();
+                    for (let p of nextNodes) {
+                      const node = p.node as t.ObjectProperty;
+                      if ((node.key as t.StringLiteral).value === 'enum') {
+                        const code = JSON.parse(generate(node.value).code);
+                        // TODO 后续分拆成枚举类型声明
+                        const unionType = code.map((i: string) => t.tsLiteralType(t.stringLiteral(i)));
+                        typeAnnotation = t.tsUnionType(unionType);
+                        break;
+                      }
+                    }
+                  } else if (type === 'boolean') {
+                    typeAnnotation = t.tsBooleanKeyword();
+                  } else if (type === 'null') {
+                    typeAnnotation = t.tsNullKeyword();
+                  } else if (type === 'undefined') {
+                    typeAnnotation = t.tsUndefinedKeyword();
+                  } else if (type === 'array') {
+                    // TODO: 暂未完成
+                    const items = path.getNextSibling().node;
+                    typeAnnotation = t.tsArrayType(t.tsUnknownKeyword());
+                  } else {
+                    // 其他类型一律unknown
+                    typeAnnotation = t.tsUnknownKeyword();
+                  }
+                } else if (attributeName === '$ref') {
+                  const identifier = type.substring(type.lastIndexOf('/') + 1);
+                  typeAnnotation = t.tsTypeReference(t.identifier(identifier));
+                }
+                const parentPath = path.parentPath.parentPath!.parentPath!.parentPath;
+                const nextSiblings = parentPath!.getAllNextSiblings();
+                let required = [];
+                for (let p of nextSiblings) {
+                  const node = p.node as t.ObjectProperty;
+                  if ((node.key as t.StringLiteral).value === 'required') {
+                    required = JSON.parse(generate(node.value).code);
+                    break;
+                  }
+                }
+                const key = ((path.parentPath.parent as t.ObjectProperty).key as t.StringLiteral).value;
+
+                const node = t.tsPropertySignature(
+                  t.identifier(key),
+                  t.tsTypeAnnotation(typeAnnotation)
+                );
+
+                // // 属性是否为可选
+                node.optional = optional || !required.includes(key);
+                path.parentPath!.parentPath!.replaceWith(node);
+                path.skip();
+                // $ 当调用了path.skip时当前节点的exit不会被触发
+                state.level--;
+              }
+            },
+            exit() {
+              // ?? 暂时不知道为啥state.level===3时，拿不到对应properties下的属性
+              state.level--;
+            }
+          });
+
+          // $ 生成类型体数据
+          path.get("value").traverse({
+            enter() {
+              state.level++;
+            },
+            ObjectProperty(path: NodePath<t.ObjectProperty>) {
+              const attributeKey = path.node.key as t.StringLiteral;
+              const attributeName = attributeKey.value;
+              if (state.level === 3 && attributeName === 'properties') {
+                const parentNode = path.parentPath!.parentPath!.node as t.ObjectProperty;
+                const name = (parentNode.key as t.StringLiteral).value;
+                let tsDeclaration = t.tsInterfaceDeclaration(
+                  t.identifier(`${prefix}${name}`),
+                  null,
+                  null,
+                  t.tsInterfaceBody(
+                    (path.node.value as t.ObjectExpression)
+                      .properties as unknown as Array<t.TSTypeElement>
+                  )
+                );
+                const programNode = path.findParent((path) =>
+                  path.isProgram()
+                )!;
+                (programNode.node as t.Program).body.push(exportType ? t.exportNamedDeclaration(tsDeclaration, []) : tsDeclaration);
+              }
+            },
+            exit() {
+              state.level--;
+            }
+          });
+          // 去掉原本节点树
+          const programNode = path.findParent((path) =>
+            path.isProgram()
+          )!;
+          (programNode.node as t.Program).body.splice(0, 1);
+          path.skip();
+        }
+
+      }
+    });
+
+
   }
 
   // *********************
@@ -119,15 +287,21 @@ export class Main extends BaseClass implements IMain {
 
   apiToTs(code: string) {
     try {
+      // 是否打开临时文件展示内容
+      const openTemporaryFile = this.getConfig(
+        CUSTOM_CONFIG.OPEN_TEMPORARY_FILE
+      ) as boolean;
+
       const tsCode = this.parseCode(code);
-      return { value: tsCode, status: HttpStatus.SUCCEED };
+      openTemporaryFile && this.openTemporaryFile(tsCode);
+      return { value: tsCode, status: HTTP_STATUS.SUCCEED };
     } catch (error: any) {
       Logger.error({
         type: ErrorEnum.UNKNOWN_MISTAKE,
         data: error.message,
-        items: ["OpenIssue"],
+        items: ["issue"],
       });
-      return { value: error.message, status: HttpStatus.FAILED };
+      return { value: error.message, status: HTTP_STATUS.FAILED };
     }
   }
 
@@ -156,7 +330,7 @@ export class Main extends BaseClass implements IMain {
 
           // 是否打开临时文件展示内容
           const openTemporaryFile = this.getConfig(
-            CustomConfig.OPEN_TEMPORARY_FILE
+            CUSTOM_CONFIG.OPEN_TEMPORARY_FILE
           ) as boolean;
 
           if (openTemporaryFile) {
@@ -174,7 +348,7 @@ export class Main extends BaseClass implements IMain {
       Logger.error({
         type: ErrorEnum.UNKNOWN_MISTAKE,
         data: error.message,
-        items: ["OpenIssue"],
+        items: ["issue"],
       });
     }
   }
@@ -226,9 +400,9 @@ export class Main extends BaseClass implements IMain {
      * 1. 数组之间的层级不共享、即数组类型合并不会与另一个数组
      * 2. 对象的层级遇到数组时，不再进行层级累加(数组由1进行操作)
      */
-    if (type === AstTypeEnum.objectExpression) {
+    if (type === AST_TYPES.OBJECT_EXPRESSION) {
       traverse(ast, this.ObjectVisitor, undefined, { parentName, arrayLevel: 0 });
-    } else if (type === AstTypeEnum.arrayExpression) {
+    } else if (type === AST_TYPES.ARRAY_EXPRESSION) {
       traverse(ast, this.ArrayVisitor, undefined, { parentName, arrayLevel: 0 });
     }
     traverse(ast, this.ProgramVisitor);
@@ -242,7 +416,7 @@ export class Main extends BaseClass implements IMain {
   /** 对象Visitor */
   get ObjectVisitor(): Visitor<t.Node> {
     const _that = this;
-    const prefix = this.getConfig(CustomConfig.PREFIX) as string ?? '';
+    const prefix = this.getConfig(CUSTOM_CONFIG.PREFIX) as string ?? '';
     return {
       ObjectProperty(path: NodePath<t.ObjectProperty>, state: any = {}) {
         const value = path.node.value;
@@ -405,7 +579,7 @@ export class Main extends BaseClass implements IMain {
         );
 
         // 属性是否为可选
-        const optional = _that.getConfig(CustomConfig.OPTIONAL) as boolean;
+        const optional = _that.getConfig(CUSTOM_CONFIG.OPTIONAL) as boolean;
         node.optional = optional;
 
         path.replaceWith(node);
@@ -561,11 +735,11 @@ export class Main extends BaseClass implements IMain {
   /** 变量处理 */
   get VariableVisitor(): Visitor<t.Node> {
     const _that = this;
-    const prefix = this.getConfig(CustomConfig.PREFIX) as string ?? '';
+    const prefix = this.getConfig(CUSTOM_CONFIG.PREFIX) as string ?? '';
     return {
       VariableDeclaration(path: NodePath<t.VariableDeclaration>) {
         // 是否追加export
-        const exportType = _that.getConfig(CustomConfig.EXPORT_TYPE) as boolean;
+        const exportType = _that.getConfig(CUSTOM_CONFIG.EXPORT_TYPE) as boolean;
 
         let declarations = path.node.declarations
           .map((declaration) => {
@@ -627,8 +801,8 @@ export class Main extends BaseClass implements IMain {
     // 从粘贴板获取内容
     const code = await this.getCodeByClipboard();
     if (this.curlRegular.test(code)) {
-      const result = await this.getCodeByCurl(code);
-      if (result.status === HttpStatus.SUCCEED) {
+      const result = await this.getCodeByGot(HTTP_MODE.CURL, { url: code });
+      if (result.status === HTTP_STATUS.SUCCEED) {
         const updateCode = this.parseCode(result.code!);
         this.openTemporaryFile(updateCode);
       }
@@ -687,7 +861,7 @@ export class Main extends BaseClass implements IMain {
         );
 
         // 属性是否为可选
-        const optional = this.getConfig(CustomConfig.OPTIONAL) as boolean;
+        const optional = this.getConfig(CUSTOM_CONFIG.OPTIONAL) as boolean;
         // 如果配置的是false, 那么需要主动判断某个类型是否为可选类型
         const isOptional = value.optional
           || excludeUndefined.length !== uniqueValue.length  // 联合类型中存在undefined
@@ -775,26 +949,26 @@ export class Main extends BaseClass implements IMain {
   /** 是否保留注释 */
   retainComments(path: NodePath<any>) {
     // 是否保留注释
-    const comments = this.getConfig(CustomConfig.COMMENTS) as string;
+    const comments = this.getConfig(CUSTOM_CONFIG.COMMENTS) as string;
 
     switch (comments) {
-      case Icomments.NONE: {
+      case COMMENTS_TYPES.NONE: {
         path.node.leadingComments = null;
         path.node.innerComments = null;
         path.node.trailingComments = null;
         break;
       }
-      case Icomments.LEADING_COMMENTS: {
+      case COMMENTS_TYPES.LEADING_COMMENTS: {
         path.node.innerComments = null;
         path.node.trailingComments = null;
         break;
       }
-      case Icomments.INNER_COMMENTS: {
+      case COMMENTS_TYPES.INNER_COMMENTS: {
         path.node.leadingComments = null;
         path.node.trailingComments = null;
         break;
       }
-      case Icomments.TRAILING_COMMENTS: {
+      case COMMENTS_TYPES.TRAILING_COMMENTS: {
         path.node.leadingComments = null;
         path.node.innerComments = null;
         break;
@@ -810,8 +984,8 @@ export class Main extends BaseClass implements IMain {
   /** 判断自引用数据 - 深度遍历 */
   selfReference(body: t.VariableDeclaration[], prev: t.VariableDeclaration, next: t.VariableDeclaration | null) {
     // TODO 联合类型复杂类型
-    const strictMode = this.getConfig(CustomConfig.STRICT_MODE) as boolean;
-    const prefix = this.getConfig(CustomConfig.PREFIX) as string ?? '';
+    const strictMode = this.getConfig(CUSTOM_CONFIG.STRICT_MODE) as boolean;
+    const prefix = this.getConfig(CUSTOM_CONFIG.PREFIX) as string ?? '';
 
     const prevDeclaration = prev.declarations[0];
     const prevInit = prevDeclaration.init;
@@ -880,7 +1054,7 @@ export class Main extends BaseClass implements IMain {
 
   /** 变量属性 */
   traverseProps(body: t.VariableDeclaration[], prev: t.VariableDeclaration, prevProps: any) {
-    const prefix = this.getConfig(CustomConfig.PREFIX) as string ?? '';
+    const prefix = this.getConfig(CUSTOM_CONFIG.PREFIX) as string ?? '';
     // 判断next是否存在非基础类型
     for (let props of prevProps) {
       const type = props.typeAnnotation.typeAnnotation;
@@ -941,32 +1115,35 @@ export class Main extends BaseClass implements IMain {
   }
 
   // *********************
-  // curl
+  // Got Request
   // *********************
 
-  async getCodeByCurl(curl: string) {
+  async getCodeByGot(mode: HTTP_MODE, options: IGotOptions) {
     try {
-      const timeout = this.getConfig(CustomConfig.TIMEOUT) as number ?? 6000;
-      const curlHttp = toJsonString(curl);
-      const { url, ...options } = JSON.parse(curlHttp);
-
-      const response: any = await got(url, { ...options, timeout } as got.GotOptions<string>);
-
-      const contentType = response.headers['content-type'];
-      let encoding: string | undefined;
-      if (contentType) {
-        encoding = MimeUtility.parse(contentType).charset;
+      const timeout = this.getConfig(CUSTOM_CONFIG.TIMEOUT) as number ?? 6000;
+      let gotUrl = options.url;
+      let gotOptions = options.options ?? {};
+      if (mode === HTTP_MODE.CURL) {
+        const curlHttp = toJsonString(gotUrl);
+        const { url, ...reset } = JSON.parse(curlHttp);
+        gotUrl = url;
+        gotOptions = reset;
       }
 
-      if (!encoding) {
-        encoding = "utf8";
+      const response: any = await got(gotUrl, { ...gotOptions, timeout } as got.GotOptions<string>);
+      const contentType = response.headers['content-type'];
+      let encoding: string = 'utf-8';
+      if (contentType) {
+        encoding = MimeUtility.parse(contentType).charset ?? encoding;
       }
 
       const bodyBuffer = response.body as Buffer;
-      let bodyString = bodyBuffer && iconv.encodingExists(encoding) ? iconv.decode(bodyBuffer, encoding) : bodyBuffer.toString();
-      return { code: bodyString, status: HttpStatus.SUCCEED };
+      const bodyString = bodyBuffer && iconv.encodingExists(encoding) ?
+        typeof bodyBuffer === 'string' ? bodyBuffer :
+          iconv.decode(bodyBuffer, encoding) : bodyBuffer.toString();
+      return { code: bodyString, status: HTTP_STATUS.SUCCEED };
     } catch (error: any) {
-      return { message: error.message, status: HttpStatus.FAILED };
+      return { message: error.message, status: HTTP_STATUS.FAILED };
     }
   }
 }
