@@ -85,7 +85,7 @@ export class Main extends BaseClass implements IMain {
   // *********************
 
   /** 执行转换 */
-  // TODO 未完成，路径、数组
+  // TODO 未完成，路径与枚举
   swaggerToTs(code: string) {
     try {
       // 是否打开临时文件展示内容
@@ -142,7 +142,7 @@ export class Main extends BaseClass implements IMain {
     const optional = this.getConfig(CUSTOM_CONFIG.OPTIONAL) as boolean;
     // 是否追加export
     const exportType = this.getConfig(CUSTOM_CONFIG.EXPORT_TYPE) as boolean;
-
+    const _that = this;
     traverse(ast, {
       ObjectProperty(path: NodePath<t.ObjectProperty>) {
         let key = path.node.key as t.StringLiteral;
@@ -195,9 +195,13 @@ export class Main extends BaseClass implements IMain {
                   } else if (type === 'undefined') {
                     typeAnnotation = t.tsUndefinedKeyword();
                   } else if (type === 'array') {
-                    // TODO: 暂未完成
-                    const items = path.getNextSibling().node;
-                    typeAnnotation = t.tsArrayType(t.tsUnknownKeyword());
+                    const items = path.getNextSibling().node as t.ObjectProperty;
+                    const code = JSON.parse(generate(items.value).code);
+                    typeAnnotation = t.tsArrayType(_that.getComplexType(code));
+                  } else if (type === 'object') {
+                    const items = path.getNextSibling().node as t.ObjectProperty;
+                    const code = JSON.parse(generate(items.value).code);
+                    typeAnnotation = _that.getComplexType(code);
                   } else {
                     // 其他类型一律unknown
                     typeAnnotation = t.tsUnknownKeyword();
@@ -277,8 +281,57 @@ export class Main extends BaseClass implements IMain {
 
       }
     });
+  }
 
-
+  getComplexType(items: Record<string, any>): t.TSType {
+    for (let key in items) {
+      const type = items[key];
+      if (key === 'type') {
+        if (type === 'number') {
+          return t.tsNumberKeyword();
+        } else if (type === 'string') {
+          if (items.format === 'date-time') {
+            // 日期类型
+            return t.tsTypeReference(t.identifier('Date'));
+          } else if (items.enum) {
+            // 枚举类型
+            const unionType = items.enum.map((i: string) => t.tsLiteralType(t.stringLiteral(i)));
+            return t.tsUnionType(unionType);
+          }
+          return t.tsStringKeyword();
+        } else if (type === 'boolean') {
+          return t.tsBooleanKeyword();
+        } else if (type === 'null') {
+          return t.tsNullKeyword();
+        } else if (type === 'undefined') {
+          return t.tsUndefinedKeyword();
+        } else if (type === 'array') {
+          if (items.items) {
+            return t.tsArrayType(this.getComplexType(items.items));
+          } else {
+            return t.tsArrayType(t.tsAnyKeyword());
+          }
+        } else if (type === 'object') {
+          if (items.items) {
+            return this.getComplexType(items.items);
+          } else {
+            return t.tsAnyKeyword();
+          }
+        }
+        // 其他类型一律unknown
+        return t.tsUnknownKeyword();
+      } else if (key === '$ref') {
+        const identifier = type.substring(type.lastIndexOf('/') + 1);
+        return t.tsTypeReference(t.identifier(identifier));
+      } else if (['oneOf', 'anyOf'].includes(key)) {
+        const unionType = type.map((i: any) => this.getComplexType(i));
+        return t.tsUnionType(unionType);
+      } else if (key === 'allOf') {
+        const unionType = type.map((i: any) => this.getComplexType(i));
+        return t.tsIntersectionType(unionType);
+      }
+    }
+    return t.tsUnknownKeyword();
   }
 
   // *********************
