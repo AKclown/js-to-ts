@@ -37,15 +37,21 @@
     window.addEventListener('message', event => {
         const message = event.data; // The json data that the extension sent
         if ('pullData' === message.type) {
-            if (message.status === 'failed') {
-                printError(message.value);
+            const { status, value, hidden } = message.payload;
+            if (status === 'failed') {
+                printError(value);
                 return;
             }
-            toggle('types');
-            document.querySelector('#types').value = message.value;
-            copyCode(message.value);
+            if (hidden) {
+                toggle('types');
+                document.querySelector('#types').value = value;
+                copyCode(message.value);
+            } else {
+                toggle('none');
+            }
         } else if ('pullNonce' === message.type) {
-            nonce = message.value;
+            const { value } = message.payload;
+            nonce = value;
         }
     });
 
@@ -57,7 +63,7 @@
             toggle('loading');
             const curl = document.querySelector('#curl').value.trim() || '';
             const swagger = document.querySelector('#swagger').value.trim() || '';
-            const swaggerPath = document.querySelector('#swagger-path').value.trim() || '';
+            // const swaggerPath = document.querySelector('#swagger-path').value.trim() || '';
             const method = document.querySelector('#method').value;
             let serverUrl = document.querySelector('#server-url').value;
             let headers = document.querySelector('#headers').value.trim() || "{}";
@@ -67,10 +73,11 @@
 
             if (curl || swagger || serverUrl) {
                 if (method === 'CURL') {
+                    console.log('method: ', method);
                     pushData({ url: curl, method });
                 } else if (method === 'SWAGGER') {
                     const options = {
-                        path: swaggerPath
+                        // path: swaggerPath
                     };
                     pushData({
                         method,

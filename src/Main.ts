@@ -85,21 +85,200 @@ export class Main extends BaseClass implements IMain {
   // *********************
 
   /** 执行转换 */
-  // TODO 待重构
-  swaggerToTs(code: string, path: string) {
+  // TODO 未完成，路径、数组
+  swaggerToTs(code: string) {
     try {
+      // 是否打开临时文件展示内容
+      const openTemporaryFile = this.getConfig(
+        CUSTOM_CONFIG.OPEN_TEMPORARY_FILE
+      ) as boolean;
 
-      // 处理schema
-      const tsCode = this.parseCode(code);
+      if (code) {
+        const tsCode = this.parseSwaggerCode(code);
+        openTemporaryFile && this.openTemporaryFile(tsCode);
+        return { value: tsCode, status: HTTP_STATUS.SUCCEED };
+      } else {
+        const activeEditor = window.activeTextEditor;
+        if (!activeEditor) {
+          return;
+        }
+        const selectData = this.getSelectedInfo();
+        if (selectData.length && !code) {
+          selectData.forEach(async (item) => {
+            const { text, range } = item;
+            const tsCode = this.parseSwaggerCode(text);
 
-      return { value: tsCode, status: HTTP_STATUS.SUCCEED };
+            if (openTemporaryFile) {
+              this.openTemporaryFile(tsCode);
+            } else {
+              activeEditor.edit((editorContext) =>
+                editorContext.replace(range, tsCode)
+              );
+            }
+          });
+        }
+      }
     } catch (error: any) {
       Logger.error({
         type: ErrorEnum.UNKNOWN_MISTAKE,
         data: error.message,
-        items: ["OpenIssue"],
+        items: ["issue"],
       });
+      return { value: error.message, status: HTTP_STATUS.FAILED };
     }
+  }
+
+  parseSwaggerCode(text: string) {
+    const updateText = `const RootObject = ${text}`;
+    const ast: ParseResult<t.File> = parse(updateText);
+    this.traverseSwaggerCode(ast);
+    const code = generate(ast).code;
+    return code;
+  }
+
+  traverseSwaggerCode(ast: ParseResult<t.File>) {
+    const prefix = this.getConfig(CUSTOM_CONFIG.PREFIX) as string ?? '';
+    // 属性是否为可选
+    const optional = this.getConfig(CUSTOM_CONFIG.OPTIONAL) as boolean;
+    // 是否追加export
+    const exportType = this.getConfig(CUSTOM_CONFIG.EXPORT_TYPE) as boolean;
+
+    traverse(ast, {
+      ObjectProperty(path: NodePath<t.ObjectProperty>) {
+        let key = path.node.key as t.StringLiteral;
+        if (key.value === 'schemas') {
+          const state = { level: 0 };
+          path.get("value").traverse({
+            enter() {
+              state.level++;
+            },
+            ObjectProperty(path: NodePath<t.ObjectProperty>) {
+              const attributeKey = path.node.key as t.StringLiteral;
+              const attributeName = attributeKey.value;
+              // 有可能类型为{key:number} => 对应是schema为 {type:{key:number}} 以及不与properties平级的type属性
+              if (['type', '$ref'].includes(attributeName) && state.level === 7) {
+                let typeAnnotation: t.TSType = t.tsUnknownKeyword();
+                const type = JSON.parse(generate(path.node.value).code);
+                if (attributeName === 'type') {
+                  if (type === 'number') {
+                    typeAnnotation = t.tsNumberKeyword();
+                  } else if (type === 'string') {
+                    typeAnnotation = t.tsStringKeyword();
+                    // 兄弟节点是否存在"format": "date-time"，表示是否为Date类型
+                    const prevNodes = path.getAllPrevSiblings();
+                    for (let p of prevNodes) {
+                      if (((p.node as t.ObjectProperty).key as t.StringLiteral).value === 'format') {
+                        const code = JSON.parse(generate(path.node.value).code);
+                        if (code === 'date-time') {
+                          typeAnnotation = t.tsTypeReference(t.identifier('Date'));
+                        }
+                        break;
+                      }
+                    }
+
+                    // 兄弟节点是否存在"enum": 表示是否为枚举类型
+                    const nextNodes = path.getAllNextSiblings();
+                    for (let p of nextNodes) {
+                      const node = p.node as t.ObjectProperty;
+                      if ((node.key as t.StringLiteral).value === 'enum') {
+                        const code = JSON.parse(generate(node.value).code);
+                        // TODO 后续分拆成枚举类型声明
+                        const unionType = code.map((i: string) => t.tsLiteralType(t.stringLiteral(i)));
+                        typeAnnotation = t.tsUnionType(unionType);
+                        break;
+                      }
+                    }
+                  } else if (type === 'boolean') {
+                    typeAnnotation = t.tsBooleanKeyword();
+                  } else if (type === 'null') {
+                    typeAnnotation = t.tsNullKeyword();
+                  } else if (type === 'undefined') {
+                    typeAnnotation = t.tsUndefinedKeyword();
+                  } else if (type === 'array') {
+                    // TODO: 暂未完成
+                    const items = path.getNextSibling().node;
+                    typeAnnotation = t.tsArrayType(t.tsUnknownKeyword());
+                  } else {
+                    // 其他类型一律unknown
+                    typeAnnotation = t.tsUnknownKeyword();
+                  }
+                } else if (attributeName === '$ref') {
+                  const identifier = type.substring(type.lastIndexOf('/') + 1);
+                  typeAnnotation = t.tsTypeReference(t.identifier(identifier));
+                }
+                const parentPath = path.parentPath.parentPath!.parentPath!.parentPath;
+                const nextSiblings = parentPath!.getAllNextSiblings();
+                let required = [];
+                for (let p of nextSiblings) {
+                  const node = p.node as t.ObjectProperty;
+                  if ((node.key as t.StringLiteral).value === 'required') {
+                    required = JSON.parse(generate(node.value).code);
+                    break;
+                  }
+                }
+                const key = ((path.parentPath.parent as t.ObjectProperty).key as t.StringLiteral).value;
+
+                const node = t.tsPropertySignature(
+                  t.identifier(key),
+                  t.tsTypeAnnotation(typeAnnotation)
+                );
+
+                // // 属性是否为可选
+                node.optional = optional || !required.includes(key);
+                path.parentPath!.parentPath!.replaceWith(node);
+                path.skip();
+                // $ 当调用了path.skip时当前节点的exit不会被触发
+                state.level--;
+              }
+            },
+            exit() {
+              // ?? 暂时不知道为啥state.level===3时，拿不到对应properties下的属性
+              state.level--;
+            }
+          });
+
+          // $ 生成类型体数据
+          path.get("value").traverse({
+            enter() {
+              state.level++;
+            },
+            ObjectProperty(path: NodePath<t.ObjectProperty>) {
+              const attributeKey = path.node.key as t.StringLiteral;
+              const attributeName = attributeKey.value;
+              if (state.level === 3 && attributeName === 'properties') {
+                const parentNode = path.parentPath!.parentPath!.node as t.ObjectProperty;
+                const name = (parentNode.key as t.StringLiteral).value;
+                let tsDeclaration = t.tsInterfaceDeclaration(
+                  t.identifier(`${prefix}${name}`),
+                  null,
+                  null,
+                  t.tsInterfaceBody(
+                    (path.node.value as t.ObjectExpression)
+                      .properties as unknown as Array<t.TSTypeElement>
+                  )
+                );
+                const programNode = path.findParent((path) =>
+                  path.isProgram()
+                )!;
+                (programNode.node as t.Program).body.push(exportType ? t.exportNamedDeclaration(tsDeclaration, []) : tsDeclaration);
+              }
+            },
+            exit() {
+              state.level--;
+            }
+          });
+          // 去掉原本节点树
+          const programNode = path.findParent((path) =>
+            path.isProgram()
+          )!;
+          (programNode.node as t.Program).body.splice(0, 1);
+          path.skip();
+        }
+
+      }
+    });
+
+
   }
 
   // *********************
@@ -108,13 +287,19 @@ export class Main extends BaseClass implements IMain {
 
   apiToTs(code: string) {
     try {
+      // 是否打开临时文件展示内容
+      const openTemporaryFile = this.getConfig(
+        CUSTOM_CONFIG.OPEN_TEMPORARY_FILE
+      ) as boolean;
+
       const tsCode = this.parseCode(code);
+      openTemporaryFile && this.openTemporaryFile(tsCode);
       return { value: tsCode, status: HTTP_STATUS.SUCCEED };
     } catch (error: any) {
       Logger.error({
         type: ErrorEnum.UNKNOWN_MISTAKE,
         data: error.message,
-        items: ["OpenIssue"],
+        items: ["issue"],
       });
       return { value: error.message, status: HTTP_STATUS.FAILED };
     }
@@ -163,7 +348,7 @@ export class Main extends BaseClass implements IMain {
       Logger.error({
         type: ErrorEnum.UNKNOWN_MISTAKE,
         data: error.message,
-        items: ["OpenIssue"],
+        items: ["issue"],
       });
     }
   }
@@ -953,7 +1138,9 @@ export class Main extends BaseClass implements IMain {
       }
 
       const bodyBuffer = response.body as Buffer;
-      const bodyString = bodyBuffer && iconv.encodingExists(encoding) ? iconv.decode(bodyBuffer, encoding) : bodyBuffer.toString();
+      const bodyString = bodyBuffer && iconv.encodingExists(encoding) ?
+        typeof bodyBuffer === 'string' ? bodyBuffer :
+          iconv.decode(bodyBuffer, encoding) : bodyBuffer.toString();
       return { code: bodyString, status: HTTP_STATUS.SUCCEED };
     } catch (error: any) {
       return { message: error.message, status: HTTP_STATUS.FAILED };

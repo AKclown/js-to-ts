@@ -1,7 +1,7 @@
 import * as vscode from "vscode";
 import { Main } from "./Main";
 import localize from './localize';
-import { HTTP_MODE, HTTP_STATUS } from "./constant";
+import { CUSTOM_CONFIG, HTTP_MODE, HTTP_STATUS } from "./constant";
 import got = require("got");
 
 export class ApiToTsViewProvider implements vscode.WebviewViewProvider {
@@ -54,20 +54,25 @@ export class ApiToTsViewProvider implements vscode.WebviewViewProvider {
         // 请求失败结束
         if (status === HTTP_STATUS.FAILED) {
           if (this._view) {
-            this._view.webview.postMessage({ type: "pullData", value: message, status: HTTP_STATUS.FAILED });
+            this._view.webview.postMessage({ type: "pullData", payload: { value: message, status: HTTP_STATUS.FAILED } });
           }
           return;
         }
 
         const TsResult = method === 'SWAGGER' ?
-          this._main.swaggerToTs(code!, options.path) :
+          this._main.swaggerToTs(code!)! :
           this._main.apiToTs(code!);
         if (this._view) {
-          this._view.webview.postMessage({ type: "pullData", value: TsResult.value, status: TsResult.status });
+          // 是否打开临时文件展示内容
+          const openTemporaryFile = this._main.getConfig(
+            CUSTOM_CONFIG.OPEN_TEMPORARY_FILE
+          ) as boolean;
+
+          this._view.webview.postMessage({ type: "pullData", payload: { value: TsResult.value, status: TsResult.status, hidden: !openTemporaryFile } });
         }
       } else if (type === "pushNonce") {
         if (this._view) {
-          this._view.webview.postMessage({ type: "pullNonce", value: nonce });
+          this._view.webview.postMessage({ type: "pullNonce", payload: { value: nonce } });
         }
       }
     });
@@ -129,20 +134,12 @@ export class ApiToTsViewProvider implements vscode.WebviewViewProvider {
             ></textarea>
           </div>
           <div id="swagger-request">
-            <p>Swagger URL</p>
+            <p>${localize('js.to.ts.swagger.url')}</p>
             <textarea
               name=""
               id="swagger"
-              placeholder="swagger"
+              placeholder="${localize('js.to.ts.enter.your.swagger.url')}"
             ></textarea>
-            <div>
-              <p>路由地址</p>
-              <textarea
-                name=""
-                id="swagger-path"
-                placeholder="path"
-              ></textarea>
-            </div>
           </div>
           <div id="simple-request">
             <div>

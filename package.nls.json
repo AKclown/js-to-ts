@@ -5,6 +5,8 @@
     "js.to.ts.api.to.ts": "API TO TS",
     "js.to.ts.curl.url": "Curl Url",
     "js.to.ts.enter.your.curl.url": "Enter Your Curl Url",
+    "js.to.ts.swagger.url": "Swagger Url",
+    "js.to.ts.enter.your.swagger.url": "Enter Your Swagger Url (json)",
     "js.to.ts.server.url": "Server URL",
     "js.to.ts.enter.your.server.url": "Enter Your Server Url",
     "js.to.ts.headers": "Headers",
