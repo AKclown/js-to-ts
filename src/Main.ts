@@ -164,30 +164,32 @@ export class Main extends BaseClass implements IMain {
                     typeAnnotation = t.tsNumberKeyword();
                   } else if (type === 'string') {
                     typeAnnotation = t.tsStringKeyword();
-                    // 兄弟节点是否存在"format": "date-time"，表示是否为Date类型
+                    /**
+                     * 1. 兄弟节点是否存在"format": "date-time"，表示是否为Date类型
+                     * 2. 兄弟节点是否存在"enum": 表示是否为枚举类型
+                     */
                     const prevNodes = path.getAllPrevSiblings();
-                    for (let p of prevNodes) {
-                      if (((p.node as t.ObjectProperty).key as t.StringLiteral).value === 'format') {
+                    const nextNodes = path.getAllNextSiblings();
+                    const siblings = [...prevNodes, ...nextNodes];
+
+                    for (let p of siblings) {
+                      const node = p.node as t.ObjectProperty;
+                      const attributeName = (node.key as t.StringLiteral).value;
+                      if (attributeName === 'enum') {
+                        const enumData = JSON.parse(generate(node.value).code);
+                        // TODO 后续分拆成枚举类型声明
+                        const unionType = _that.getUnionType(enumData);
+                        typeAnnotation = t.tsUnionType(unionType);
+                        break;
+                      } else if (attributeName === 'format') {
                         const code = JSON.parse(generate(path.node.value).code);
                         if (code === 'date-time') {
                           typeAnnotation = t.tsTypeReference(t.identifier('Date'));
+                          break;
                         }
-                        break;
                       }
                     }
 
-                    // 兄弟节点是否存在"enum": 表示是否为枚举类型
-                    const nextNodes = path.getAllNextSiblings();
-                    for (let p of nextNodes) {
-                      const node = p.node as t.ObjectProperty;
-                      if ((node.key as t.StringLiteral).value === 'enum') {
-                        const code = JSON.parse(generate(node.value).code);
-                        // TODO 后续分拆成枚举类型声明
-                        const unionType = code.map((i: string) => t.tsLiteralType(t.stringLiteral(i)));
-                        typeAnnotation = t.tsUnionType(unionType);
-                        break;
-                      }
-                    }
                   } else if (type === 'boolean') {
                     typeAnnotation = t.tsBooleanKeyword();
                   } else if (type === 'null') {
@@ -202,6 +204,25 @@ export class Main extends BaseClass implements IMain {
                     const items = path.getNextSibling().node as t.ObjectProperty;
                     const code = JSON.parse(generate(items.value).code);
                     typeAnnotation = _that.getComplexType(code);
+                  } else if (type === 'integer') {
+                    typeAnnotation = t.tsNumberKeyword();
+
+                    const prevNodes = path.getAllPrevSiblings();
+                    const nextNodes = path.getAllNextSiblings();
+                    const siblings = [...prevNodes, ...nextNodes];
+
+                    for (let p of siblings) {
+                      const node = p.node as t.ObjectProperty;
+                      const attributeName = (node.key as t.StringLiteral).value;
+                      if (attributeName === 'enum') {
+                        const enumData = JSON.parse(generate(node.value).code);
+                        // TODO 后续分拆成枚举类型声明
+                        const unionType = _that.getUnionType(enumData);
+                        typeAnnotation = t.tsUnionType(unionType);
+                        break;
+                      }
+                    }
+
                   } else {
                     // 其他类型一律unknown
                     typeAnnotation = t.tsUnknownKeyword();
@@ -211,11 +232,14 @@ export class Main extends BaseClass implements IMain {
                   typeAnnotation = t.tsTypeReference(t.identifier(identifier));
                 }
                 const parentPath = path.parentPath.parentPath!.parentPath!.parentPath;
-                const nextSiblings = parentPath!.getAllNextSiblings();
+                const prevNodes = parentPath!.getAllPrevSiblings();
+                const nextNodes = parentPath!.getAllNextSiblings();
+                const siblings = [...prevNodes, ...nextNodes];
                 let required = [];
-                for (let p of nextSiblings) {
+                for (let p of siblings) {
                   const node = p.node as t.ObjectProperty;
-                  if ((node.key as t.StringLiteral).value === 'required') {
+                  const attributeName = (node.key as t.StringLiteral).value;
+                  if (attributeName === 'required') {
                     required = JSON.parse(generate(node.value).code);
                     break;
                   }
@@ -233,6 +257,81 @@ export class Main extends BaseClass implements IMain {
                 path.skip();
                 // $ 当调用了path.skip时当前节点的exit不会被触发
                 state.level--;
+              } else if (state.level === 1) {
+                // 存在没有properties子节点属性的情况, 当不存在时，这一层就需要处理类型了
+                const properties = (path.node.value as t.ObjectExpression).properties;
+                let isExistProperties = false;
+                let type = '';
+                let enumData = [];
+                let formatData = '';
+                for (let p of properties) {
+                  const key = ((p as t.ObjectProperty).key as t.StringLiteral).value;
+                  if (key === 'properties') {
+                    isExistProperties = true;
+                  } else if (key === 'type') {
+                    type = JSON.parse(generate((p as t.ObjectProperty).value).code);
+                  } else if (key === 'enum') {
+                    enumData = JSON.parse(generate((p as t.ObjectProperty).value).code);
+                  } else if (key === 'format') {
+                    formatData = JSON.parse(generate((p as t.ObjectProperty).value).code);
+                  }
+                }
+
+                if (!isExistProperties) {
+                  let typeAnnotation: t.TSType = t.tsUnknownKeyword();
+                  // 没有子属性properties，不在往下递归
+                  if (type === 'number') {
+                    typeAnnotation = t.tsNumberKeyword();
+                  } else if (type === 'string') {
+                    typeAnnotation = t.tsStringKeyword();
+                    /**
+                     * 1. 是否存在"format": "date-time"，表示是否为Date类型
+                     * 2. 是否存在"enum": 表示是否为枚举类型
+                     */
+                    if (enumData.length) {
+                      const unionType = _that.getUnionType(enumData);
+                      typeAnnotation = t.tsUnionType(unionType);
+                    } else if (formatData === 'date-time') {
+                      typeAnnotation = t.tsTypeReference(t.identifier('Date'));
+                    }
+                  } else if (type === 'boolean') {
+                    typeAnnotation = t.tsBooleanKeyword();
+                  } else if (type === 'null') {
+                    typeAnnotation = t.tsNullKeyword();
+                  } else if (type === 'undefined') {
+                    typeAnnotation = t.tsUndefinedKeyword();
+                  } else if (type === 'array') {
+                    typeAnnotation = t.tsArrayType(t.tsUnknownKeyword());
+                  } else if (type === 'object') {
+                    typeAnnotation = t.tsTypeReference(t.identifier('Record<string, unknown>'));
+                  } else if (type === 'integer') {
+                    typeAnnotation = t.tsNumberKeyword();
+                    if (enumData.length) {
+                      const unionType = _that.getUnionType(enumData);
+                      typeAnnotation = t.tsUnionType(unionType);
+                    }
+                  } else {
+                    // 其他类型一律unknown
+                    typeAnnotation = t.tsUnknownKeyword();
+                  }
+
+                  const key = ((path.node as t.ObjectProperty).key as t.StringLiteral).value;
+
+                  const tsDeclaration = t.tsTypeAliasDeclaration(
+                    t.identifier(`${prefix}${key}`),
+                    null,
+                    typeAnnotation
+                  );
+
+                  const programNode = path.findParent((path) =>
+                    path.isProgram()
+                  )!;
+                  (programNode.node as t.Program).body.push(exportType ? t.exportNamedDeclaration(tsDeclaration, []) : tsDeclaration);
+
+                  path.skip();
+                  // $ 当调用了path.skip时当前节点的exit不会被触发
+                  state.level--;
+                }
               }
             },
             exit() {
@@ -252,14 +351,26 @@ export class Main extends BaseClass implements IMain {
               if (state.level === 3 && attributeName === 'properties') {
                 const parentNode = path.parentPath!.parentPath!.node as t.ObjectProperty;
                 const name = (parentNode.key as t.StringLiteral).value;
+                let properties = (path.node.value as t.ObjectExpression).properties as unknown as Array<t.TSTypeElement>;
+                // 有可能数据不存在type|$ref字段，导致上面变量没有被转换为TSTypeElement类型，在这一层转换。 
+                // 案例数据: "value":{"nullable": true }
+                properties = properties.map(property => {
+                  if (t.isTSPropertySignature(property)) {
+                    return property;
+                  } else {
+                    const key = ((property as unknown as t.ObjectProperty).key as t.StringLiteral).value;
+                    return t.tsPropertySignature(
+                      t.identifier(key),
+                      t.tsTypeAnnotation(t.tsUnknownKeyword())
+                    );
+                  }
+                });
+
                 let tsDeclaration = t.tsInterfaceDeclaration(
                   t.identifier(`${prefix}${name}`),
                   null,
                   null,
-                  t.tsInterfaceBody(
-                    (path.node.value as t.ObjectExpression)
-                      .properties as unknown as Array<t.TSTypeElement>
-                  )
+                  t.tsInterfaceBody(properties)
                 );
                 const programNode = path.findParent((path) =>
                   path.isProgram()
@@ -278,7 +389,6 @@ export class Main extends BaseClass implements IMain {
           (programNode.node as t.Program).body.splice(0, 1);
           path.skip();
         }
-
       }
     });
   }
@@ -295,7 +405,7 @@ export class Main extends BaseClass implements IMain {
             return t.tsTypeReference(t.identifier('Date'));
           } else if (items.enum) {
             // 枚举类型
-            const unionType = items.enum.map((i: string) => t.tsLiteralType(t.stringLiteral(i)));
+            const unionType = this.getUnionType(items.enum);
             return t.tsUnionType(unionType);
           }
           return t.tsStringKeyword();
@@ -315,7 +425,7 @@ export class Main extends BaseClass implements IMain {
           if (items.items) {
             return this.getComplexType(items.items);
           } else {
-            return t.tsAnyKeyword();
+            return t.tsTypeReference(t.identifier('Record<string, unknown>'));
           }
         }
         // 其他类型一律unknown
@@ -332,6 +442,16 @@ export class Main extends BaseClass implements IMain {
       }
     }
     return t.tsUnknownKeyword();
+  }
+
+  getUnionType(enumData: Array<number | string>) {
+    return enumData.map((i: number | string) => {
+      if (typeof i === "number") {
+        return t.tsLiteralType(t.numericLiteral(i));
+      } else {
+        return t.tsLiteralType(t.stringLiteral(i));
+      }
+    });
   }
 
   // *********************
@@ -903,6 +1023,10 @@ export class Main extends BaseClass implements IMain {
         let sortType = value.type.sort((a, b) => a.type.localeCompare(b.type));
 
         let uniqueValue = this.deduplication(sortType);
+
+        // $ 类型为TSTypeReference时，判断类型之间是否可以合并在一起。
+        // 例如: count1 | count2 | count3, count1已经包含了count2 | count3，应该舍弃count2 | count3只保留count1
+
 
         // 存在两个及以上类型，需要将undefined改为?:，不是显示声明undefined
         let excludeUndefined = uniqueValue.length > 1 ? (uniqueValue as t.TSTypeAnnotation[]).filter((unique: any) => unique.type !== 'TSUndefinedKeyword') : uniqueValue;
