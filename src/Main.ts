@@ -146,6 +146,12 @@ export class Main extends BaseClass implements IMain {
     traverse(ast, {
       ObjectProperty(path: NodePath<t.ObjectProperty>) {
         let key = path.node.key as t.StringLiteral;
+        const whitelist = ["components", "schemas"];
+        if (!whitelist.includes(key.value)) {
+          // 跳过其余节点
+          path.skip();
+          return;
+        }
         if (key.value === 'schemas') {
           const state = { level: 0 };
           path.get("value").traverse({
