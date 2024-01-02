@@ -63,7 +63,7 @@
             toggle('loading');
             const curl = document.querySelector('#curl').value.trim() || '';
             const swagger = document.querySelector('#swagger').value.trim() || '';
-            // const swaggerPath = document.querySelector('#swagger-path').value.trim() || '';
+            const swaggerPath = document.querySelector('#swagger-path').value.trim() || '';
             const method = document.querySelector('#method').value;
             let serverUrl = document.querySelector('#server-url').value;
             let headers = document.querySelector('#headers').value.trim() || "{}";
@@ -73,11 +73,10 @@
 
             if (curl || swagger || serverUrl) {
                 if (method === 'CURL') {
-                    console.log('method: ', method);
                     pushData({ url: curl, method });
                 } else if (method === 'SWAGGER') {
                     const options = {
-                        // path: swaggerPath
+                        specificPath: swaggerPath
                     };
                     pushData({
                         method,
