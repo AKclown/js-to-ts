@@ -22,11 +22,14 @@ export class Main extends BaseClass implements IMain {
   private newVariable: Map<string, string>;
   /** 变量名称的缓存 */
   private variableNames: Map<string, number>;
+  /** 指定路径的schemas路径 (swagger) */
+  private swaggerSchema: Set<string>;
   constructor() {
     super();
     this.newVariable = new Map([]);
     this.variableNames = new Map([]);
     this.arrayLevelCache = new Map([]);
+    this.swaggerSchema = new Set([]);
   }
 
   // *********************
@@ -85,8 +88,7 @@ export class Main extends BaseClass implements IMain {
   // *********************
 
   /** 执行转换 */
-  // TODO 未完成，路径与枚举
-  swaggerToTs(code: string) {
+  swaggerToTs(code: string, specificPath?: string) {
     try {
       // 是否打开临时文件展示内容
       const openTemporaryFile = this.getConfig(
@@ -94,7 +96,7 @@ export class Main extends BaseClass implements IMain {
       ) as boolean;
 
       if (code) {
-        const tsCode = this.parseSwaggerCode(code);
+        const tsCode = this.parseSwaggerCode(code, specificPath);
         openTemporaryFile && this.openTemporaryFile(tsCode);
         return { value: tsCode, status: HTTP_STATUS.SUCCEED };
       } else {
@@ -128,12 +130,173 @@ export class Main extends BaseClass implements IMain {
     }
   }
 
-  parseSwaggerCode(text: string) {
+  parseSwaggerCode(text: string, specificPath?: string) {
+    this.swaggerSchema.clear();
     const updateText = `const RootObject = ${text}`;
     const ast: ParseResult<t.File> = parse(updateText);
-    this.traverseSwaggerCode(ast);
+    if (specificPath) {
+      this.getSchemaByPath(ast, specificPath);
+      if (this.swaggerSchema.size) {
+        const cloneSchema = new Set([...this.swaggerSchema]);
+        this.relatedSchema(ast, cloneSchema);
+        this.traverseSwaggerCode(ast);
+      }
+    } else {
+      this.traverseSwaggerCode(ast);
+    }
     const code = generate(ast).code;
     return code;
+  }
+
+  getSchemaByPath(ast: ParseResult<t.File>, specificPath: string) {
+    const prefix = this.getConfig(CUSTOM_CONFIG.PREFIX) as string ?? '';
+    // 是否追加export
+    const exportType = this.getConfig(CUSTOM_CONFIG.EXPORT_TYPE) as boolean;
+    const _that = this;
+    traverse(ast, {
+      ObjectProperty(path: NodePath<t.ObjectProperty>) {
+        let complexNum = 0;
+        let key = path.node.key as t.StringLiteral;
+        const programNode = path.findParent((path) =>
+          path.isProgram()
+        )!;
+        const body = (programNode.node as t.Program).body;
+        if (key.value !== 'paths') {
+          // 跳过其余节点
+          path.skip();
+          return;
+        }
+
+        const state = { level: 0 };
+        path.get("value").traverse({
+          enter() {
+            state.level++;
+          },
+          ObjectProperty(path: NodePath<t.ObjectProperty>) {
+            const attributeKey = path.node.key as t.StringLiteral;
+            const attributeName = attributeKey.value;
+            const type = JSON.parse(generate(path.node.value).code);
+
+            if (state.level === 1 && attributeName !== specificPath) {
+              // 过滤掉路径不是指定路径的节点
+              path.skip();
+              state.level--;
+              return;
+            }
+
+            if (state.level === 5 && attributeName !== "responses") {
+              // 过滤掉除“responses”之外的节点
+              path.skip();
+              state.level--;
+              return;
+            }
+
+            // 获取到schema的数据，基本类型和复杂类型
+            if (attributeName === 'type') {
+              // 普通类型 
+              _that.swaggerSchema.add(type);
+            } else if (attributeName === '$ref') {
+              // 复杂类型
+              const identifier = type.substring(type.lastIndexOf('/') + 1);
+              _that.swaggerSchema.add(identifier);
+              complexNum++;
+            }
+          },
+          exit() {
+            state.level--;
+          }
+        });
+
+        // 只存在一个复杂schema类型时，不需要生成新的RootObject节点
+        if (complexNum === 1 && _that.swaggerSchema.size !== 1) {
+          const unionType = _that.swaggerSchema.size ? Array.from(_that.swaggerSchema).map(type => {
+            if (type === 'number') {
+              _that.swaggerSchema.delete(type);
+              return t.tsNumberKeyword();
+            } else if (type === 'string') {
+              _that.swaggerSchema.delete(type);
+              return t.tsStringKeyword();
+            } else if (type === 'boolean') {
+              _that.swaggerSchema.delete(type);
+              return t.tsBooleanKeyword();
+            } else if (type === 'null') {
+              _that.swaggerSchema.delete(type);
+              return t.tsNullKeyword();
+            } else if (type === 'undefined') {
+              _that.swaggerSchema.delete(type);
+              return t.tsUndefinedKeyword();
+            } else {
+
+              return t.tsTypeReference(t.identifier(type));
+            }
+          }) : [t.tsUnknownKeyword()];
+          const tsDeclaration = t.tsTypeAliasDeclaration(
+            t.identifier(`${prefix}RootObject`),
+            null,
+            t.tsUnionType(unionType)
+          );
+          body.push(exportType ? t.exportNamedDeclaration(tsDeclaration, []) : tsDeclaration);
+
+
+          if (!_that.swaggerSchema.size) {
+            // $ 不存在复杂的schema类型,后续不会再进行tree的遍历.去掉原本节点树
+            body.splice(0, 1);
+          }
+        }
+      }
+    });
+  }
+
+  relatedSchema(ast: ParseResult<t.File>, names: Set<string>) {
+    // 获取到schema的依赖关系列表
+    const _that = this;
+    traverse(ast, {
+      ObjectProperty(path: NodePath<t.ObjectProperty>) {
+        let key = path.node.key as t.StringLiteral;
+        const whitelist = ["components", "schemas"];
+        if (!whitelist.includes(key.value)) {
+          // 跳过其余节点
+          path.skip();
+          return;
+        }
+        if (key.value === 'schemas') {
+          const state = { level: 0 };
+          path.get("value").traverse({
+            enter() {
+              state.level++;
+            },
+            ObjectProperty(path: NodePath<t.ObjectProperty>) {
+              const attributeKey = path.node.key as t.StringLiteral;
+              const attributeName = attributeKey.value;
+              if (state.level === 1 && !names.has(attributeName)) {
+                // 跳过无关节点
+                path.skip();
+                state.level--;
+                return;
+              }
+
+              if ('$ref' === attributeName) {
+                const type = JSON.parse(generate(path.node.value).code);
+                const identifier = type.substring(type.lastIndexOf('/') + 1);
+                names.add(identifier);
+                _that.swaggerSchema.add(identifier);
+              }
+            },
+            exit(path) {
+              state.level--;
+              if (!state.level) {
+                const attributeKey = (path.node as t.ObjectProperty).key as t.StringLiteral;
+                const attributeName = attributeKey.value;
+                names.delete(attributeName);
+              }
+            }
+          });
+        }
+      }
+    });
+    if (names.size) {
+      this.relatedSchema(ast, names);
+    }
   }
 
   traverseSwaggerCode(ast: ParseResult<t.File>) {
@@ -145,7 +308,17 @@ export class Main extends BaseClass implements IMain {
     const _that = this;
     traverse(ast, {
       ObjectProperty(path: NodePath<t.ObjectProperty>) {
+        const programNode = path.findParent((path) =>
+          path.isProgram()
+        )!;
+        const body = (programNode.node as t.Program).body;
         let key = path.node.key as t.StringLiteral;
+        const whitelist = ["components", "schemas"];
+        if (!whitelist.includes(key.value)) {
+          // 跳过其余节点
+          path.skip();
+          return;
+        }
         if (key.value === 'schemas') {
           const state = { level: 0 };
           path.get("value").traverse({
@@ -155,6 +328,13 @@ export class Main extends BaseClass implements IMain {
             ObjectProperty(path: NodePath<t.ObjectProperty>) {
               const attributeKey = path.node.key as t.StringLiteral;
               const attributeName = attributeKey.value;
+              if (_that.swaggerSchema.size && state.level === 1 && !_that.swaggerSchema.has(attributeName)) {
+                // $ 非指定的schema直接跳过
+                path.skip();
+                state.level--;
+                return;
+              }
+
               // 有可能类型为{key:number} => 对应是schema为 {type:{key:number}} 以及不与properties平级的type属性
               if (['type', '$ref'].includes(attributeName) && state.level === 7) {
                 let typeAnnotation: t.TSType = t.tsUnknownKeyword();
@@ -230,6 +410,7 @@ export class Main extends BaseClass implements IMain {
                 } else if (attributeName === '$ref') {
                   const identifier = type.substring(type.lastIndexOf('/') + 1);
                   typeAnnotation = t.tsTypeReference(t.identifier(identifier));
+
                 }
                 const parentPath = path.parentPath.parentPath!.parentPath!.parentPath;
                 const prevNodes = parentPath!.getAllPrevSiblings();
@@ -348,6 +529,12 @@ export class Main extends BaseClass implements IMain {
             ObjectProperty(path: NodePath<t.ObjectProperty>) {
               const attributeKey = path.node.key as t.StringLiteral;
               const attributeName = attributeKey.value;
+              if (_that.swaggerSchema.size && state.level === 1 && !_that.swaggerSchema.has(attributeName)) {
+                // $ 非指定的schema直接跳过
+                path.skip();
+                state.level--;
+                return;
+              }
               if (state.level === 3 && attributeName === 'properties') {
                 const parentNode = path.parentPath!.parentPath!.node as t.ObjectProperty;
                 const name = (parentNode.key as t.StringLiteral).value;
@@ -375,18 +562,16 @@ export class Main extends BaseClass implements IMain {
                 const programNode = path.findParent((path) =>
                   path.isProgram()
                 )!;
-                (programNode.node as t.Program).body.push(exportType ? t.exportNamedDeclaration(tsDeclaration, []) : tsDeclaration);
+                body.push(exportType ? t.exportNamedDeclaration(tsDeclaration, []) : tsDeclaration);
               }
             },
             exit() {
               state.level--;
             }
           });
+
           // 去掉原本节点树
-          const programNode = path.findParent((path) =>
-            path.isProgram()
-          )!;
-          (programNode.node as t.Program).body.splice(0, 1);
+          body.splice(0, 1);
           path.skip();
         }
       }

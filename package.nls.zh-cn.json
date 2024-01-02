@@ -7,6 +7,8 @@
     "js.to.ts.enter.your.curl.url": "输入你的Curl地址",
     "js.to.ts.swagger.url": "Swagger地址",
     "js.to.ts.enter.your.swagger.url": "输入你的Swagger地址 (json)",
+    "js.to.ts.swagger.path": "Swagger路径",
+    "js.to.ts.enter.your.swagger.path": "输入指定的Swagger路径 (可选的)",
     "js.to.ts.server.url": "服务器地址",
     "js.to.ts.enter.your.server.url": "输入你的服务器地址",
     "js.to.ts.headers": "标头",

@@ -60,7 +60,7 @@ export class ApiToTsViewProvider implements vscode.WebviewViewProvider {
         }
 
         const TsResult = method === 'SWAGGER' ?
-          this._main.swaggerToTs(code!)! :
+          this._main.swaggerToTs(code!, options?.specificPath)! :
           this._main.apiToTs(code!);
         if (this._view) {
           // 是否打开临时文件展示内容
@@ -139,6 +139,12 @@ export class ApiToTsViewProvider implements vscode.WebviewViewProvider {
               name=""
               id="swagger"
               placeholder="${localize('js.to.ts.enter.your.swagger.url')}"
+            ></textarea>
+            <p>${localize('js.to.ts.swagger.path')}</p>
+            <textarea
+              name=""
+              id="swagger-path"
+              placeholder="${localize('js.to.ts.enter.your.swagger.path')}"
             ></textarea>
           </div>
           <div id="simple-request">
