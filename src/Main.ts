@@ -130,6 +130,7 @@ export class Main extends BaseClass implements IMain {
     }
   }
 
+  // schemaJson规范: https://json-schema.org/
   parseSwaggerCode(text: string, specificPath?: string) {
     this.swaggerSchema.clear();
     const updateText = `const RootObject = ${text}`;
@@ -1210,7 +1211,7 @@ export class Main extends BaseClass implements IMain {
         let uniqueValue = this.deduplication(sortType);
 
         // $ 类型为TSTypeReference时，判断类型之间是否可以合并在一起。
-        // 例如: count1 | count2 | count3, count1已经包含了count2 | count3，应该舍弃count2 | count3只保留count1
+        // TODO: 例如: count1 | count2 | count3, count1已经包含了count2 | count3，应该舍弃count2 | count3只保留count1
 
 
         // 存在两个及以上类型，需要将undefined改为?:，不是显示声明undefined

@@ -10,10 +10,10 @@
   "keywords": [
     "js to ts",
     "json to ts",
+    "swagger to ts",
     "json2ts",
     "js2ts",
     "swagger2ts",
-    "swagger to ts",
     "api to ts"
   ],
   "homepage": "https://github.com/AKclown/js-to-ts/blob/main/README.md",
@@ -146,19 +146,24 @@
         "key": "ctrl+oem_7",
         "mac": "ctrl+oem_7",
         "when": "editorTextFocus && !editorReadonly"
+      },
+      {
+        "key": "ctrl+oem_1",
+        "command": "workbench.view.extension.js-to-ts",
+        "when": "viewContainer.workbench.view.extensions.enabled"
       }
     ],
     "viewsContainers": {
       "activitybar": [
         {
-          "id": "package-explorer",
+          "id": "js-to-ts",
           "title": "%js.to.ts%",
           "icon": "images/outline-recovery-convert.svg"
         }
       ]
     },
     "views": {
-      "package-explorer": [
+      "js-to-ts": [
         {
           "id": "api.to.ts",
           "name": "",
