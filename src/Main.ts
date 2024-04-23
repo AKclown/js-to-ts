@@ -1211,8 +1211,8 @@ export class Main extends BaseClass implements IMain {
           const typeNames = uniqueValue.filter(item => t.isTSTypeReference(item)).map(item => ((item as unknown as t.TSTypeReference)!.typeName as t.Identifier)!.name);
           const subsetNames = typeNames.filter(name => this.isSubset(name));
           uniqueValue = uniqueValue.filter(item => {
-            const name = ((item as unknown as t.TSTypeReference)!.typeName as t.Identifier)!.name;
             if (t.isTSTypeReference(item)) {
+              const name = ((item as unknown as t.TSTypeReference)!.typeName as t.Identifier)!.name;
               return !subsetNames.includes(name);
             }
             return true;
