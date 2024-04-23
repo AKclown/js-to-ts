@@ -18,18 +18,21 @@ export class Main extends BaseClass implements IMain {
 
   /** 数组的层级缓存数据 */
   private arrayLevelCache: Map<number, any>;
-  /** 新增变量的缓存数据 */
+  /** 新增变量的json缓存数据 */
   private newVariable: Map<string, string>;
   /** 变量名称的缓存 */
   private variableNames: Map<string, number>;
   /** 指定路径的schemas路径 (swagger) */
   private swaggerSchema: Set<string>;
+  /** 新增变量Node数据 */
+  private variableNode: Map<string, t.ObjectExpression | t.ArrayExpression>
   constructor() {
     super();
-    this.newVariable = new Map([]);
-    this.variableNames = new Map([]);
-    this.arrayLevelCache = new Map([]);
+    this.newVariable = new Map();
+    this.variableNames = new Map();
+    this.arrayLevelCache = new Map();
     this.swaggerSchema = new Set([]);
+    this.variableNode = new Map();
   }
 
   // *********************
@@ -719,6 +722,7 @@ export class Main extends BaseClass implements IMain {
   parseCode(text: string): string {
     this.newVariable.clear();
     this.variableNames.clear();
+    this.variableNode.clear();
     const regular = /(var|let|const)\s*(\w+)(.*)/m;
     let updateText = text;
     let variableName = updateText.match(regular)?.[2];
@@ -817,6 +821,7 @@ export class Main extends BaseClass implements IMain {
           // TODO: 未完成
           // typeAnnotation = t.tsFunctionType(null, []);
         } else if (t.isArrayExpression(value)) {
+
           if (value.elements.length) {
             const id = _that.getID(key);
 
@@ -852,17 +857,9 @@ export class Main extends BaseClass implements IMain {
 
               state.arrayLevel--;
               if (!state.arrayLevel) {
-                const programNode = path.findParent((path) =>
-                  path.isProgram()
-                )!;
                 for (let { id, value } of _that.arrayLevelCache.values()) {
-                  const variable = t.variableDeclaration("const", [
-                    t.variableDeclarator(
-                      t.identifier(id),
-                      value as t.ArrayExpression
-                    ),
-                  ]);
-                  (programNode.node as t.Program).body.splice(1, 0, variable);
+                  // 新增变量
+                  _that.variableNode.set(id, value as t.ArrayExpression);
                 }
                 _that.arrayLevelCache.clear();
               }
@@ -906,14 +903,7 @@ export class Main extends BaseClass implements IMain {
 
           if (!reusableId && !isBlank) {
             // 生成一个新的变量
-            const variable = t.variableDeclaration("const", [
-              t.variableDeclarator(
-                t.identifier(id),
-                path.node.value as t.ObjectExpression
-              ),
-            ]);
-            const programNode = path.findParent((path) => path.isProgram())!;
-            (programNode.node as t.Program).body.splice(1, 0, variable);
+            _that.variableNode.set(id, path.node.value as t.ObjectExpression);
           }
 
           const prototypeName = isBlank ? 'Record<string, unknown>' : `${prefix}${reusableId ?? id}`;
@@ -1010,17 +1000,9 @@ export class Main extends BaseClass implements IMain {
             //  判断合并之后的数组对象是否跟父类型一致，一致则不在产生新数据
             state.arrayLevel--;
             if (!state.arrayLevel) {
-              const programNode = path.findParent((path) =>
-                path.isProgram()
-              )!;
               for (let { id, value } of _that.arrayLevelCache.values()) {
-                const variable = t.variableDeclaration("const", [
-                  t.variableDeclarator(
-                    t.identifier(id),
-                    value as t.ArrayExpression
-                  ),
-                ]);
-                (programNode.node as t.Program).body.splice(1, 0, variable);
+                // 新增变量
+                _that.variableNode.set(id, value as t.ArrayExpression);
               }
               _that.arrayLevelCache.clear();
             }
@@ -1080,6 +1062,21 @@ export class Main extends BaseClass implements IMain {
     const _that = this;
     return {
       Program(path: NodePath<t.Program>, state: any = {}) {
+        // 添加新增的类型定义
+        const variables = [];
+        for (let [key, node] of _that.variableNode.entries()) {
+          const variable = t.variableDeclaration("const", [
+            t.variableDeclarator(
+              t.identifier(key),
+              node
+            ),
+          ]);
+          variables.push(variable);
+        }
+        if (variables.length) {
+          path.node.body.splice(1, 0, ...variables);
+        }
+        // 判断是否自己引用自己
         try {
           const body = path.node.body as t.VariableDeclaration[];
           _that.selfReference(body, body[0], null);
@@ -1188,14 +1185,13 @@ export class Main extends BaseClass implements IMain {
         basics.push(element);
       }
     });
-
     if (complexes.length < 2) { return this.deduplication(elements); }
 
     for (let complex of complexes) {
       for (let member of complex!.members) {
         const key = generate((member as t.TSPropertySignature).key).code;
         // 某个属性存在optional为true时，后续就不能把option改为false了
-        const optional = typeMap.get(key)?.optional || member.optional;
+        const optional: boolean = typeMap.get(key)?.optional || member.optional;
         const typeAnnotations: Array<t.TSTypeAnnotation> = typeMap.get(key)?.type ?? [];
 
         typeMap.set(key, { optional, type: [...typeAnnotations, member.typeAnnotation?.typeAnnotation] as Array<t.TSTypeAnnotation> });
@@ -1207,12 +1203,21 @@ export class Main extends BaseClass implements IMain {
       for (let [key, value] of typeMap) {
         // $ 对类型进行字符排序，例如string | number 与 number | string应该是等价的
         let sortType = value.type.sort((a, b) => a.type.localeCompare(b.type));
-
         let uniqueValue = this.deduplication(sortType);
-
-        // $ 类型为TSTypeReference时，判断类型之间是否可以合并在一起。
-        // TODO: 例如: count1 | count2 | count3, count1已经包含了count2 | count3，应该舍弃count2 | count3只保留count1
-
+        if (uniqueValue.length > 1) {
+          // $ 类型为TSTypeReference时，判断类型之间是否可以合并在一起。
+          // TODO: 例如: count1 | count2 | count3, count1已经包含了count2 | count3，应该舍弃count2 | count3 只保留count1
+          // 移除掉variableNode和newVariable里面的数据
+          const typeNames = uniqueValue.filter(item => t.isTSTypeReference(item)).map(item => ((item as unknown as t.TSTypeReference)!.typeName as t.Identifier)!.name);
+          const subsetNames = typeNames.filter(name => this.isSubset(name));
+          uniqueValue = uniqueValue.filter(item => {
+            const name = ((item as unknown as t.TSTypeReference)!.typeName as t.Identifier)!.name;
+            if (t.isTSTypeReference(item)) {
+              return !subsetNames.includes(name);
+            }
+            return true;
+          });
+        }
 
         // 存在两个及以上类型，需要将undefined改为?:，不是显示声明undefined
         let excludeUndefined = uniqueValue.length > 1 ? (uniqueValue as t.TSTypeAnnotation[]).filter((unique: any) => unique.type !== 'TSUndefinedKeyword') : uniqueValue;
@@ -1239,6 +1244,39 @@ export class Main extends BaseClass implements IMain {
     return [...this.deduplication(basics), t.tsTypeLiteral(updateNode)];
   }
 
+  /** 是否为某个对象的子集 */
+  isSubset(name: string) {
+    const variableNode = this.variableNode as Map<string, t.ObjectExpression>;
+    const target = variableNode.get(name)!;
+    for (let [key, source] of variableNode.entries()) {
+      if (name !== key && target.properties.length < source.properties.length) {
+        // 判断当前对象是否被其他对象包含，联合类型
+        const targetCode = this.jsonToObject(generate(target).code);
+        const sourceCode = this.jsonToObject(generate(source).code);
+        const isContain = this.areObjectsContain(targetCode, sourceCode);
+        if (isContain) {
+          // 移除掉该变量的缓存
+          this.variableNode.delete(name);
+          this.newVariable.delete(name);
+          return true;
+        }
+      }
+    }
+  }
+
+  /** 对象是否包裹 */
+  areObjectsContain(target: Record<string, any>, source: Record<string, any>) {
+    const targetEntries = Object.entries(target);
+    for (const [key, value] of targetEntries) {
+      if (!source.hasOwnProperty(key) || source[key] !== value) {
+        return false;
+      }
+    }
+    return true;
+  }
+
+
+
   /** 类型是否可复用 */
   reusableById(originId: string, code: string): string | undefined {
     // TODO:对比 - 策略可优化
@@ -1254,7 +1292,7 @@ export class Main extends BaseClass implements IMain {
   }
 
   /** 去重 */
-  deduplication(value: Array<t.Expression | t.SpreadElement | null>) {
+  deduplication(value: Array<t.Expression | t.SpreadElement | null>): Array<any> {
     if (value.length > 1) {
       const unique: Set<string> = new Set([]);
       // TODO： 已經存在數組，應該整合在一起，並且去掉unknown
@@ -1450,7 +1488,7 @@ export class Main extends BaseClass implements IMain {
     /**
      * 自动检测Maps https://github.com/MariusAlch/vscode-json-to-ts/issues/14
      * 需要满足如下条件：
-     * properties数量至少2个，且类型不是基础类型、所有属性的类型完成相同
+     * properties数量至少2个，且类型不是基础类型、所有属性的类型完全相同
      */
     const properties = values.properties || [];
     let updateProps = properties as any as Array<t.TSPropertySignature>;

@@ -107,4 +107,13 @@ export class BaseClass implements IBaseClass {
   async getCodeByClipboard(): Promise<string> {
     return await env.clipboard.readText();
   }
+
+  jsonToObject(json: string): Record<string, any> {
+    const text = json.replace(/\n|;/g, '').replace(/(\w+)\s*:/g, (match, p1) => `"${p1}":`)
+      .replace(/:\s*(\w+)/g, (match, p1) => `:"${p1}"`)
+      .replace(/\'/g, "\"")
+      // 去掉末尾的,
+      .replace(/,(\}|\])/g, (match, p1) => `${p1}`);
+    return JSON.parse(text);
+  }
 }
