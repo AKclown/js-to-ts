@@ -1,36 +1,56 @@
+### 0.7.0 (2024-04-23)
+
+1. 判断联合类型是否可以合并到一个类型里  
+   `例如: count1 | count2 | count3, count1已经包含了count2和count3，应该舍弃count2和count3 只保留count1`
+
+- 更新前
+  ![union-before](./images//union-before.jpg)
+- 更新后  
+  ![union-after](./images//union-after.jpg)
+
 ### 0.6.8 (2024-01-02)
+
 1. 优化减少不必要的属性遍历
-2. 新增`指定swagger路径类型转换`。可选项(不指定路径则转换整个swagger文档)
-![指定路径](./images//specifiesPath.jpg)
+2. 新增`指定swagger路径类型转换`。可选项(不指定路径则转换整个 swagger 文档)
+   ![指定路径](./images//specifiesPath.jpg)
 
 ### 0.6.7 (2023-12-28)
-1. 修复swagger中类型声明不规范时导致的转换异常
+
+1. 修复 swagger 中类型声明不规范时导致的转换异常
 
 ### 0.6.6 (2023-12-19)
-1. 支持swagger中的`数组`和`对象`类型
+
+1. 支持 swagger 中的`数组`和`对象`类型
 
 ### 0.6.5 (2023-12-19)
+
 1. 不忽略`node_modules`目录文件
 
 ### 0.6.4 (2023-12-19)
+
 1. 剪切板如果是`curl`将自动请求
 2. 将请求由原来的`webview`改为插件内部请求`避免跨域问题`
 3. 支持`swagger json`数据和`api接口`转为类型声明
 4. 废弃掉旧版本`swagger`类型生成
 
 ### 0.6.3 (2023-07-26)
-1. 修复允许prefix为空
+
+1. 修复允许 prefix 为空
 
 ### 0.6.2 (2023-07-25)
-1. `配置面板`添加curl超时时长设置,默认时长设置为6000ms
+
+1. `配置面板`添加 curl 超时时长设置,默认时长设置为 6000ms
 
 ### 0.6.1 (2023-07-18)
-1. 使用`curlconverter`替换原有curl转json的库
-2. curl错误逻辑
-3. curl文本国际化
+
+1. 使用`curlconverter`替换原有 curl 转 json 的库
+2. curl 错误逻辑
+3. curl 文本国际化
+
 ### 0.6.0 (2023-07-17)
-1. 支持`curl`方式请求。 
-`chrome -> network -> copy -> Copy as cURL(bash)`
+
+1. 支持`curl`方式请求。
+   `chrome -> network -> copy -> Copy as cURL(bash)`
 
 ### 0.5.1 (2023-07-14)
 
