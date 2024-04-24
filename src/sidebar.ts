@@ -59,9 +59,9 @@ export class ApiToTsViewProvider implements vscode.WebviewViewProvider {
           return;
         }
 
-        const TsResult = method === 'SWAGGER' ?
-          this._main.swaggerToTs(code!, options?.specificPath)! :
-          this._main.apiToTs(code!);
+        const isSchema = method === 'SWAGGER';
+
+        const TsResult = this._main.apiToTs(isSchema, code!, options?.specificPath);
         if (this._view) {
           // 是否打开临时文件展示内容
           const openTemporaryFile = this._main.getConfig(
