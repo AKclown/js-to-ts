@@ -14,7 +14,7 @@ export interface IMain {
   // API TO TS
   // *********************
 
-  apiToTs(code: string): { value: string, status: HTTP_STATUS };
+  apiToTs(isSchema: boolean, code: string, specificPath?: string): { value: string, status: HTTP_STATUS };
 
   // *********************
   // JS To TS
