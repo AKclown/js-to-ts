@@ -1,33 +1,27 @@
 ## JS To TS `优化中`
 
-**功能一:**&nbsp; 将`api`返回数据转为`typescript`类型声明  
-PS: 自动将类型内容分配到剪贴板  
-<img src="./images/apiToTs.jpg" width="90%" alt='apiToTs.jpg'>  
-支持`curl`格式的链接请求  
-`chrome -> network -> copy -> Copy as cURL(bash)`
-<img src="./images/curlRequest.jpg" width="90%" alt='apiToTs.jpg'>
+**更加轻松便捷的转换 ts 类型声明**🤡
 
-**功能二:** &nbsp;将`JavaScript`对象转为`typescript`类型声明  
-PS: 未选择内容时按`ctrl+shift+j`会转换剪切板内容  
-<img src="./images/jsToTs.jpg" width="90%" alt='jsToTs.jpg'>
+<img src="./images/js-to-ts.gif" width="90%" alt='js-to-ts.jpg'>
 
-**功能三:** &nbsp;将`swagger`的`json`数据转换成
-`typescript`类型声明     
+## 功能
 
-***提示:*** 生成swagger的JSON文件导航到`http://localhost:3000/api-json`(假设我们的swagger文档地址为`http://localhost:3000/api`)
+**将 JavaScript 对象转为 typescript 类型声**  
+ PS： `未选择内容`时按`ctrl+shift+j`会转换剪切板内容
 
-<img src="./images/swaggerToTs.jpg" width="90%" alt='swaggerToTs.jpg'>
+**将 swagger 的 schema 数据转换成 typescript 类型声明生成**  
+ PS: swagger 的 JSON 文件导航到`http://localhost:3000/api-json`(假设我们的 swagger 文档地址为`http://localhost:3000/api`)
 
----
+**将 api 返回数据转为 typescript 类型声明**。  
+ 支持`curl`格式的链接请求： `chrome -> network -> copy -> Copy as cURL(bash)`  
+ PS: 自动将转换好的类型内容分配到剪贴板
+
+  <img src="./images/curlRequest.jpg" width="90%" alt='apiToTs.jpg'>
 
 ## 设置面板
 
+**一些自定义的配置项**
 <img src="./images/config.jpg" width="90%" alt='config.jpg'>
-
----
-
-## 用法
-<img src="./images/jsToTs.gif" width="90%" alt='jsToTs.gif'>
 
 ## 快捷键配置
 

@@ -11,9 +11,11 @@
     "js to ts",
     "json to ts",
     "swagger to ts",
+    "schema to ts",
     "json2ts",
     "js2ts",
     "swagger2ts",
+    "schema2ts",
     "api to ts"
   ],
   "homepage": "https://github.com/AKclown/js-to-ts/blob/main/README.md",
