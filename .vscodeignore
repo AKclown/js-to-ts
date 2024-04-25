@@ -9,4 +9,3 @@ images/**.jpg
 **/.eslintrc.json
 **/*.map
 **/*.ts
-*.md
